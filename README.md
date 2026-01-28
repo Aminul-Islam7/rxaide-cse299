@@ -6,7 +6,7 @@ ZenMode is a context-aware focus assistant designed to help users maintain atten
 
 ## 🎓 Project Details
 
-- **Project Group**: _TBD_
+- **Project Group**: Group 2
 - **Course:** CSE299 (Section 4)
 - **Semester:** Spring 2026 (North South University)
 - **Faculty:** Dr. Mohammad Shifat-E-Rabbi (MSRb)
@@ -19,7 +19,7 @@ ZenMode is a context-aware focus assistant designed to help users maintain atten
 | :--- | :--- | :--- |
 | Aminul Islam | 2321169042 | aminul.islam.232@northsouth.edu |
 | Md Shahriar Rakib Rabbi | 2321937642 | shahriar.rabbi.232@northsouth.edu |
-| Tirtho Mojumder | 2312536648 | tirtho.mojumdar.2312536@northsouth.edu |
+| Tirtho Mojumder | 2312536042 | tirtho.mojumdar.2312536@northsouth.edu |
 
 ---
 
