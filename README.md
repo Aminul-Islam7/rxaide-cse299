@@ -1,6 +1,6 @@
-# ZenMode
+# RxAide
 
-ZenMode is a context-aware focus assistant designed to help users maintain attention during work or study sessions. The system aims to detect moments of focus drift and gently guide users back into a focused state, promoting mindful and distraction-aware productivity. This project is being developed as part of the CSE299 course at North South University.
+RxAide is a medication reminder and management assistant designed to help users manage their medications effectively. The system uses AI to process prescription images and create personalized medication schedules, with features to track adherence, handle missed doses, and provide safe suggestions. This project is being developed as part of the CSE299 course at North South University.
 
 ---
 
