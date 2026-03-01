@@ -26,7 +26,7 @@ import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Medication
-import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -236,7 +236,7 @@ fun MedicationDetailScreen(
 
                     if (med.notes.isNotBlank()) {
                         DetailRow(
-                            icon = Icons.Default.Notes,
+                            icon = Icons.AutoMirrored.Filled.Notes,
                             label = "Notes",
                             value = med.notes
                         )
