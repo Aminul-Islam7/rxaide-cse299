@@ -25,29 +25,41 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -65,6 +77,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.rxaide.data.entity.Medication
@@ -73,6 +86,9 @@ import com.example.rxaide.ui.theme.HealingGreen
 import com.example.rxaide.ui.theme.MedicalBlue
 import com.example.rxaide.viewmodel.MedicationViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -81,32 +97,50 @@ fun AddMedicationScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCamera: () -> Unit
 ) {
+    // ── Form state ──────────────────────────────────────────────────────
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
+    var dosageUnit by remember { mutableStateOf("mg") }
     var form by remember { mutableStateOf("Tablet") }
-    var frequency by remember { mutableStateOf("") }
+    var frequency by remember { mutableStateOf("Once daily") }
+    var mealRelation by remember { mutableStateOf("No relation") }
     var instructions by remember { mutableStateOf("") }
-    var duration by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var endDate by remember { mutableStateOf<Long?>(null) }
 
     val capturedImagePath by viewModel.capturedImagePath.collectAsState()
 
-    // Schedule times
-    val scheduleTimes = remember { mutableStateListOf<Pair<Int, Int>>() } // hour, minute pairs
+    // Schedule times (hour, minute pairs)
+    val scheduleTimes = remember { mutableStateListOf<Pair<Int, Int>>() }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
+    // Validation
+    var nameError by remember { mutableStateOf(false) }
+    var dosageError by remember { mutableStateOf(false) }
+
+    // Dropdowns expanded state
+    var dosageUnitExpanded by remember { mutableStateOf(false) }
+    var frequencyExpanded by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // ── Options ─────────────────────────────────────────────────────────
     val formOptions = listOf("Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Other")
+    val dosageUnitOptions = listOf("mg", "ml", "mcg", "g", "tablet", "capsule", "drop", "puff")
+    val frequencyOptions = listOf("Once daily", "Twice daily", "Three times daily", "Four times daily", "Weekly", "As needed")
+    val mealRelationOptions = listOf("Before meal", "After meal", "With meal", "No relation")
+
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Add Medication",
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Add Medication", fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -130,7 +164,9 @@ fun AddMedicationScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
+            // ════════════════════════════════════════════════════════════
             // Prescription Image Card
+            // ════════════════════════════════════════════════════════════
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -148,9 +184,7 @@ fun AddMedicationScreen(
                     if (capturedImagePath != null) {
                         Box(modifier = Modifier.fillMaxWidth()) {
                             Image(
-                                painter = rememberAsyncImagePainter(
-                                    model = Uri.parse(capturedImagePath)
-                                ),
+                                painter = rememberAsyncImagePainter(model = Uri.parse(capturedImagePath)),
                                 contentDescription = "Captured Prescription",
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -162,11 +196,7 @@ fun AddMedicationScreen(
                                 onClick = { viewModel.setCapturedImagePath(null) },
                                 modifier = Modifier.align(Alignment.TopEnd)
                             ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Remove Image",
-                                    tint = Color.White
-                                )
+                                Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White)
                             }
                         }
                     } else {
@@ -175,11 +205,7 @@ fun AddMedicationScreen(
                                 .fillMaxWidth()
                                 .height(120.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .border(
-                                    2.dp,
-                                    MedicalBlue.copy(alpha = 0.3f),
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .border(2.dp, MedicalBlue.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                                 .clickable(onClick = onNavigateToCamera),
                             contentAlignment = Alignment.Center
                         ) {
@@ -209,20 +235,24 @@ fun AddMedicationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Medication Info Section
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Medication Information
+            // ════════════════════════════════════════════════════════════
             SectionTitle("Medication Information")
-
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Name
+            // Medication Name
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = {
+                    name = it
+                    if (it.isNotBlank()) nameError = false
+                },
                 label = { Text("Medication Name *") },
                 placeholder = { Text("e.g., Amoxicillin") },
-                leadingIcon = {
-                    Icon(Icons.Default.Medication, contentDescription = null, tint = MedicalBlue)
-                },
+                leadingIcon = { Icon(Icons.Default.Medication, contentDescription = null, tint = MedicalBlue) },
+                isError = nameError,
+                supportingText = if (nameError) {{ Text("Medication name is required") }} else null,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(
@@ -239,35 +269,83 @@ fun AddMedicationScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Dosage
-            OutlinedTextField(
-                value = dosage,
-                onValueChange = { dosage = it },
-                label = { Text("Dosage *") },
-                placeholder = { Text("e.g., 500mg") },
+            // Dosage Amount + Unit (side by side)
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MedicalBlue,
-                    focusedLabelColor = MedicalBlue,
-                    cursorColor = MedicalBlue
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Dosage amount
+                OutlinedTextField(
+                    value = dosage,
+                    onValueChange = {
+                        dosage = it
+                        if (it.isNotBlank()) dosageError = false
+                    },
+                    label = { Text("Dosage *") },
+                    placeholder = { Text("e.g., 500") },
+                    isError = dosageError,
+                    supportingText = if (dosageError) {{ Text("Required") }} else null,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MedicalBlue,
+                        focusedLabelColor = MedicalBlue,
+                        cursorColor = MedicalBlue
+                    )
                 )
-            )
+
+                // Dosage unit dropdown
+                ExposedDropdownMenuBox(
+                    expanded = dosageUnitExpanded,
+                    onExpandedChange = { dosageUnitExpanded = it },
+                    modifier = Modifier.weight(0.7f)
+                ) {
+                    OutlinedTextField(
+                        value = dosageUnit,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Unit") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dosageUnitExpanded) },
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MedicalBlue,
+                            focusedLabelColor = MedicalBlue
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = dosageUnitExpanded,
+                        onDismissRequest = { dosageUnitExpanded = false }
+                    ) {
+                        dosageUnitOptions.forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text(unit) },
+                                onClick = {
+                                    dosageUnit = unit
+                                    dosageUnitExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Form Selection
+            // Form Selection (chips)
             Text(
                 text = "Form",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -290,68 +368,167 @@ fun AddMedicationScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Frequency & Meal Relation
+            // ════════════════════════════════════════════════════════════
+            SectionTitle("Dosage Schedule")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Frequency dropdown
+            ExposedDropdownMenuBox(
+                expanded = frequencyExpanded,
+                onExpandedChange = { frequencyExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = frequency,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Frequency") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MedicalBlue,
+                        focusedLabelColor = MedicalBlue
+                    )
+                )
+                ExposedDropdownMenu(
+                    expanded = frequencyExpanded,
+                    onDismissRequest = { frequencyExpanded = false }
+                ) {
+                    frequencyOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                frequency = option
+                                frequencyExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Frequency
-            OutlinedTextField(
-                value = frequency,
-                onValueChange = { frequency = it },
-                label = { Text("Frequency") },
-                placeholder = { Text("e.g., 3 times daily") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MedicalBlue,
-                    focusedLabelColor = MedicalBlue,
-                    cursorColor = MedicalBlue
-                )
+            // Meal Relation chips
+            Text(
+                text = "Meal Relation",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                mealRelationOptions.forEach { option ->
+                    FilterChip(
+                        selected = mealRelation == option,
+                        onClick = { mealRelation = option },
+                        label = { Text(option) },
+                        leadingIcon = if (mealRelation == option) {
+                            {
+                                Icon(
+                                    if (option == "No relation") Icons.Default.Close else Icons.Default.Restaurant,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = HealingGreen.copy(alpha = 0.15f),
+                            selectedLabelColor = HealingGreen,
+                            selectedLeadingIconColor = HealingGreen
+                        )
+                    )
+                }
+            }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Dates
+            // ════════════════════════════════════════════════════════════
+            SectionTitle("Duration")
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Instructions
-            OutlinedTextField(
-                value = instructions,
-                onValueChange = { instructions = it },
-                label = { Text("Instructions") },
-                placeholder = { Text("e.g., Take after meals") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MedicalBlue,
-                    focusedLabelColor = MedicalBlue,
-                    cursorColor = MedicalBlue
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Start Date
+                OutlinedTextField(
+                    value = dateFormat.format(Date(startDate)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Start Date") },
+                    trailingIcon = {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MedicalBlue)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showStartDatePicker = true },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MedicalBlue
+                    )
                 )
-            )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Duration
-            OutlinedTextField(
-                value = duration,
-                onValueChange = { duration = it },
-                label = { Text("Duration") },
-                placeholder = { Text("e.g., 7 days") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MedicalBlue,
-                    focusedLabelColor = MedicalBlue,
-                    cursorColor = MedicalBlue
+                // End Date
+                OutlinedTextField(
+                    value = if (endDate != null) dateFormat.format(Date(endDate!!)) else "Ongoing",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("End Date") },
+                    trailingIcon = {
+                        if (endDate != null) {
+                            IconButton(onClick = { endDate = null }, modifier = Modifier.size(20.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                            }
+                        } else {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MedicalBlue)
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showEndDatePicker = true },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MedicalBlue
+                    )
                 )
-            )
+            }
+
+            // Clickable overlays for date fields
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.dp)
+            ) {} // date clicks handled by enabled=false + clickable modifier
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Schedule Times Section
-            SectionTitle("Schedule Times")
-
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Schedule Times
+            // ════════════════════════════════════════════════════════════
+            SectionTitle("Reminder Times")
             Spacer(modifier = Modifier.height(12.dp))
 
             if (scheduleTimes.isNotEmpty()) {
@@ -377,15 +554,15 @@ fun AddMedicationScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
+                                val amPm = if (hour < 12) "AM" else "PM"
+                                val displayHour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
                                 Text(
-                                    text = String.format("%02d:%02d", hour, minute),
+                                    text = String.format("%d:%02d %s", displayHour, minute, amPm),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
                                 )
-                                IconButton(
-                                    onClick = { scheduleTimes.removeAt(index) }
-                                ) {
+                                IconButton(onClick = { scheduleTimes.removeAt(index) }) {
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = "Remove time",
@@ -415,14 +592,65 @@ fun AddMedicationScreen(
                 Text("Add Reminder Time")
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Additional Info
+            // ════════════════════════════════════════════════════════════
+            SectionTitle("Additional Information")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Instructions
+            OutlinedTextField(
+                value = instructions,
+                onValueChange = { instructions = it },
+                label = { Text("Instructions") },
+                placeholder = { Text("e.g., Take with plenty of water") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MedicalBlue,
+                    focusedLabelColor = MedicalBlue,
+                    cursorColor = MedicalBlue
+                )
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Notes
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("Notes") },
+                placeholder = { Text("Any additional notes...") },
+                leadingIcon = { Icon(Icons.Default.Notes, contentDescription = null, tint = MedicalBlue) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                shape = RoundedCornerShape(12.dp),
+                maxLines = 4,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MedicalBlue,
+                    focusedLabelColor = MedicalBlue,
+                    cursorColor = MedicalBlue
+                )
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ════════════════════════════════════════════════════════════
             // Save Button
+            // ════════════════════════════════════════════════════════════
             Button(
                 onClick = {
-                    if (name.isBlank() || dosage.isBlank()) {
+                    // Validate
+                    nameError = name.isBlank()
+                    dosageError = dosage.isBlank()
+                    if (nameError || dosageError) {
                         scope.launch {
-                            snackbarHostState.showSnackbar("Please fill in medication name and dosage")
+                            snackbarHostState.showSnackbar("Please fill in all required fields")
                         }
                         return@Button
                     }
@@ -430,27 +658,32 @@ fun AddMedicationScreen(
                     val medication = Medication(
                         name = name.trim(),
                         dosage = dosage.trim(),
+                        dosageUnit = dosageUnit,
                         form = form,
-                        frequency = frequency.trim(),
+                        frequency = frequency,
+                        mealRelation = mealRelation,
                         instructions = instructions.trim(),
-                        duration = duration.trim(),
+                        startDate = startDate,
+                        endDate = endDate,
+                        notes = notes.trim(),
                         prescriptionImagePath = capturedImagePath
                     )
 
-                    viewModel.insertMedication(medication) { medicationId ->
-                        // Insert schedules
-                        if (scheduleTimes.isNotEmpty()) {
-                            val schedules = scheduleTimes.map { (hour, minute) ->
-                                Schedule(
-                                    medicationId = medicationId,
-                                    timeHour = hour,
-                                    timeMinute = minute
-                                )
-                            }
-                            viewModel.insertSchedules(schedules)
-                        }
+                    val schedules = scheduleTimes.map { (hour, minute) ->
+                        Schedule(
+                            medicationId = 0, // will be set by ViewModel
+                            timeHour = hour,
+                            timeMinute = minute
+                        )
                     }
 
+                    viewModel.addMedicationWithSchedules(medication, schedules) {
+                        // Navigate back on success
+                    }
+
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Medication saved successfully!")
+                    }
                     viewModel.setCapturedImagePath(null)
                     onNavigateBack()
                 },
@@ -472,6 +705,7 @@ fun AddMedicationScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
+        // ── Dialogs ─────────────────────────────────────────────────────
         // Time Picker Dialog
         if (showTimePicker) {
             TimePickerDialog(
@@ -481,6 +715,44 @@ fun AddMedicationScreen(
                     showTimePicker = false
                 }
             )
+        }
+
+        // Start Date Picker Dialog
+        if (showStartDatePicker) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
+            DatePickerDialog(
+                onDismissRequest = { showStartDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        datePickerState.selectedDateMillis?.let { startDate = it }
+                        showStartDatePicker = false
+                    }) { Text("OK", color = MedicalBlue) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+
+        // End Date Picker Dialog
+        if (showEndDatePicker) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate ?: System.currentTimeMillis())
+            DatePickerDialog(
+                onDismissRequest = { showEndDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        endDate = datePickerState.selectedDateMillis
+                        showEndDatePicker = false
+                    }) { Text("OK", color = MedicalBlue) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
         }
     }
 }
@@ -527,7 +799,7 @@ private fun TimePickerDialog(
             }
         },
         dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }

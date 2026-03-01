@@ -22,9 +22,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -59,6 +62,9 @@ import com.example.rxaide.ui.theme.HealingGreen
 import com.example.rxaide.ui.theme.MedicalBlue
 import com.example.rxaide.ui.theme.MedicalBlueDark
 import com.example.rxaide.viewmodel.MedicationViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +108,11 @@ fun MedicationDetailScreen(
         }
     ) { innerPadding ->
         medication?.let { med ->
+            val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+            val isCompleted = med.endDate != null && med.endDate < System.currentTimeMillis()
+            val statusText = if (med.isActive && !isCompleted) "Active" else "Completed"
+            val isActive = med.isActive && !isCompleted
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -143,7 +154,7 @@ fun MedicationDetailScreen(
                                 color = Color.White
                             )
                             Text(
-                                text = "${med.dosage} • ${med.form}",
+                                text = "${med.dosage} ${med.dosageUnit} • ${med.form}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = Color.White.copy(alpha = 0.85f)
                             )
@@ -152,13 +163,13 @@ fun MedicationDetailScreen(
                                     .padding(top = 4.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(
-                                        if (med.isActive) HealingGreen.copy(alpha = 0.3f)
+                                        if (isActive) HealingGreen.copy(alpha = 0.3f)
                                         else Color.White.copy(alpha = 0.2f)
                                     )
                                     .padding(horizontal = 10.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    text = if (med.isActive) "Active" else "Inactive",
+                                    text = statusText,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Color.White,
                                     fontWeight = FontWeight.Medium
@@ -181,6 +192,15 @@ fun MedicationDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    if (med.mealRelation.isNotBlank() && med.mealRelation != "No relation") {
+                        DetailRow(
+                            icon = Icons.Default.Restaurant,
+                            label = "Meal Relation",
+                            value = med.mealRelation
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     if (med.instructions.isNotBlank()) {
                         DetailRow(
                             icon = Icons.Default.Info,
@@ -190,11 +210,35 @@ fun MedicationDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    // Start / End Date row
+                    DetailRow(
+                        icon = Icons.Default.CalendarMonth,
+                        label = "Start Date",
+                        value = dateFormat.format(Date(med.startDate))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    DetailRow(
+                        icon = Icons.Default.EventAvailable,
+                        label = "End Date",
+                        value = med.endDate?.let { dateFormat.format(Date(it)) } ?: "Ongoing"
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     if (med.duration.isNotBlank()) {
                         DetailRow(
                             icon = Icons.Default.CalendarMonth,
                             label = "Duration",
                             value = med.duration
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    if (med.notes.isNotBlank()) {
+                        DetailRow(
+                            icon = Icons.Default.Notes,
+                            label = "Notes",
+                            value = med.notes
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -239,11 +283,16 @@ fun MedicationDetailScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
+                                    val amPm = if (schedule.timeHour < 12) "AM" else "PM"
+                                    val displayHour = if (schedule.timeHour == 0) 12
+                                        else if (schedule.timeHour > 12) schedule.timeHour - 12
+                                        else schedule.timeHour
                                     Text(
                                         text = String.format(
-                                            "%02d:%02d",
-                                            schedule.timeHour,
-                                            schedule.timeMinute
+                                            "%d:%02d %s",
+                                            displayHour,
+                                            schedule.timeMinute,
+                                            amPm
                                         ),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium

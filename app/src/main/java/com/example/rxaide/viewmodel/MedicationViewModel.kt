@@ -59,6 +59,25 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * Inserts a medication and its schedules in one call.
+     * Calls [onComplete] on the main thread when finished.
+     */
+    fun addMedicationWithSchedules(
+        medication: Medication,
+        schedules: List<Schedule>,
+        onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val medId = repository.insertMedication(medication)
+            if (schedules.isNotEmpty()) {
+                val linked = schedules.map { it.copy(medicationId = medId) }
+                repository.insertSchedules(linked)
+            }
+            onComplete()
+        }
+    }
+
     fun updateMedication(medication: Medication) {
         viewModelScope.launch {
             repository.updateMedication(medication)

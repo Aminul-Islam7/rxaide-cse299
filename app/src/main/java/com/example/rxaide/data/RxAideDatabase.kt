@@ -13,7 +13,7 @@ import com.example.rxaide.data.entity.Schedule
 
 @Database(
     entities = [Medication::class, Schedule::class, DoseHistory::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class RxAideDatabase : RoomDatabase() {

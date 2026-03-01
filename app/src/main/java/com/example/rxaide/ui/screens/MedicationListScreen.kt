@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,6 +58,9 @@ import com.example.rxaide.ui.theme.AlertRed
 import com.example.rxaide.ui.theme.HealingGreen
 import com.example.rxaide.ui.theme.MedicalBlue
 import com.example.rxaide.viewmodel.MedicationViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,6 +199,11 @@ private fun MedicationCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
+    // Determine status: if endDate is set and in the past → "Completed", otherwise "Active"
+    val isCompleted = medication.endDate != null && medication.endDate < System.currentTimeMillis()
+    val statusText = if (medication.isActive && !isCompleted) "Active" else "Completed"
+    val isActive = medication.isActive && !isCompleted
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -215,7 +224,7 @@ private fun MedicationCard(
                     .size(52.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(
-                        if (medication.isActive) MedicalBlue.copy(alpha = 0.1f)
+                        if (isActive) MedicalBlue.copy(alpha = 0.1f)
                         else MaterialTheme.colorScheme.surfaceVariant
                     ),
                 contentAlignment = Alignment.Center
@@ -223,7 +232,7 @@ private fun MedicationCard(
                 Icon(
                     imageVector = Icons.Default.Medication,
                     contentDescription = null,
-                    tint = if (medication.isActive) MedicalBlue
+                    tint = if (isActive) MedicalBlue
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
                 )
@@ -245,20 +254,20 @@ private fun MedicationCard(
                         modifier = Modifier.weight(1f, fill = false)
                     )
 
-                    // Active/Inactive badge
+                    // Active/Completed badge
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (medication.isActive) HealingGreen.copy(alpha = 0.15f)
+                                if (isActive) HealingGreen.copy(alpha = 0.15f)
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (medication.isActive) "Active" else "Inactive",
+                            text = statusText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (medication.isActive) HealingGreen
+                            color = if (isActive) HealingGreen
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
@@ -267,9 +276,11 @@ private fun MedicationCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // Dosage with unit + form
                 Text(
                     text = buildString {
                         append(medication.dosage)
+                        if (medication.dosageUnit.isNotBlank()) append(" ${medication.dosageUnit}")
                         if (medication.form.isNotBlank()) append(" • ${medication.form}")
                     },
                     style = MaterialTheme.typography.bodyMedium,
@@ -278,15 +289,34 @@ private fun MedicationCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (medication.frequency.isNotBlank()) {
+                // Frequency + meal relation
+                val subtitleParts = mutableListOf<String>()
+                if (medication.frequency.isNotBlank()) subtitleParts.add(medication.frequency)
+                if (medication.mealRelation.isNotBlank() && medication.mealRelation != "No relation") {
+                    subtitleParts.add(medication.mealRelation)
+                }
+                if (subtitleParts.isNotEmpty()) {
                     Text(
-                        text = medication.frequency,
+                        text = subtitleParts.joinToString(" • "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                // Date range
+                val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+                val dateInfo = buildString {
+                    append(dateFormat.format(Date(medication.startDate)))
+                    append(" → ")
+                    append(medication.endDate?.let { dateFormat.format(Date(it)) } ?: "Ongoing")
+                }
+                Text(
+                    text = dateInfo,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             }
 
             IconButton(onClick = onDelete) {
