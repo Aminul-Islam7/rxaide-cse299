@@ -1,6 +1,9 @@
 package com.example.rxaide.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -9,15 +12,18 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.rxaide.ui.screens.AddMedicationScreen
 import com.example.rxaide.ui.screens.CameraScreen
+import com.example.rxaide.ui.screens.ChatScreen
 import com.example.rxaide.ui.screens.HomeScreen
 import com.example.rxaide.ui.screens.MedicationDetailScreen
 import com.example.rxaide.ui.screens.MedicationListScreen
+import com.example.rxaide.viewmodel.ChatViewModel
 import com.example.rxaide.viewmodel.MedicationViewModel
 
 @Composable
 fun RxAideNavGraph(
     navController: NavHostController,
-    viewModel: MedicationViewModel = viewModel()
+    viewModel: MedicationViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel()
 ) {
     NavHost(
         navController = navController,
@@ -34,6 +40,9 @@ fun RxAideNavGraph(
                 },
                 onNavigateToCamera = {
                     navController.navigate(Screen.Camera.route)
+                },
+                onNavigateToChat = {
+                    navController.navigate(Screen.Chat.route)
                 }
             )
         }
@@ -62,8 +71,30 @@ fun RxAideNavGraph(
         }
 
         composable(Screen.Camera.route) {
+            // After image capture, navigate to Chat with the image
+            val capturedImagePath by viewModel.capturedImagePath.collectAsState()
+
             CameraScreen(
                 viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+
+            // When an image is captured, send it to chat and navigate there
+            LaunchedEffect(capturedImagePath) {
+                capturedImagePath?.let { uri ->
+                    chatViewModel.sendImageMessage(uri)
+                    viewModel.setCapturedImagePath(null) // Clear after sending
+                    // Navigate to chat, replacing camera in the back stack
+                    navController.navigate(Screen.Chat.route) {
+                        popUpTo(Screen.Camera.route) { inclusive = true }
+                    }
+                }
+            }
+        }
+
+        composable(Screen.Chat.route) {
+            ChatScreen(
+                chatViewModel = chatViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

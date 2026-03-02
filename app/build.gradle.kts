@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+// Load API key from local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -16,6 +25,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Inject the Gemini API key into BuildConfig
+        buildConfigField(
+            "String",
+            "GEMINI_API_KEY",
+            "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\""
+        )
     }
 
     buildTypes {
@@ -33,6 +49,20 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    // Required for the google-genai SDK (it bundles some META-INF files)
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/*.kotlin_module"
+        }
     }
 }
 
@@ -67,6 +97,12 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+
+    // Google Gen AI SDK (Gemini)
+    implementation(libs.google.genai)
+
+    // Compose Markdown
+    implementation(libs.compose.markdown)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
