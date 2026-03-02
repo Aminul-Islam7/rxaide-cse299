@@ -61,7 +61,8 @@ fun HomeScreen(
     viewModel: MedicationViewModel,
     onNavigateToMedications: () -> Unit,
     onNavigateToAddMedication: () -> Unit,
-    onNavigateToCamera: () -> Unit
+    onNavigateToCamera: () -> Unit,
+    onNavigateToChat: () -> Unit
 ) {
     val activeMedicationCount by viewModel.activeMedicationCount.collectAsState()
     val totalTaken by viewModel.totalTakenCount.collectAsState()
@@ -70,7 +71,7 @@ fun HomeScreen(
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Navigate to AI Chatbot */ },
+                onClick = onNavigateToChat,
                 containerColor = MedicalBlue,
                 contentColor = Color.White,
                 shape = CircleShape

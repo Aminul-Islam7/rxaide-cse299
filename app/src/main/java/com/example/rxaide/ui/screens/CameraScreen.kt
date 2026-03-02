@@ -96,7 +96,6 @@ fun CameraScreen(
     ) { uri: Uri? ->
         uri?.let {
             viewModel.setCapturedImagePath(it.toString())
-            onNavigateBack()
         }
     }
 
@@ -263,7 +262,6 @@ fun CameraScreen(
                                     imageCapture?.let { capture ->
                                         takePhoto(context, capture) { uri ->
                                             viewModel.setCapturedImagePath(uri.toString())
-                                            onNavigateBack()
                                         }
                                     }
                                 },

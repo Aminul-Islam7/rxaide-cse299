@@ -4,16 +4,18 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.rxaide.data.dao.ChatMessageDao
 import com.example.rxaide.data.dao.DoseHistoryDao
 import com.example.rxaide.data.dao.MedicationDao
 import com.example.rxaide.data.dao.ScheduleDao
+import com.example.rxaide.data.entity.ChatMessage
 import com.example.rxaide.data.entity.DoseHistory
 import com.example.rxaide.data.entity.Medication
 import com.example.rxaide.data.entity.Schedule
 
 @Database(
-    entities = [Medication::class, Schedule::class, DoseHistory::class],
-    version = 1,
+    entities = [Medication::class, Schedule::class, DoseHistory::class, ChatMessage::class],
+    version = 2,
     exportSchema = false
 )
 abstract class RxAideDatabase : RoomDatabase() {
@@ -21,6 +23,7 @@ abstract class RxAideDatabase : RoomDatabase() {
     abstract fun medicationDao(): MedicationDao
     abstract fun scheduleDao(): ScheduleDao
     abstract fun doseHistoryDao(): DoseHistoryDao
+    abstract fun chatMessageDao(): ChatMessageDao
 
     companion object {
         @Volatile

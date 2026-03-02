@@ -2,6 +2,7 @@ package com.example.rxaide
 
 import android.app.Application
 import com.example.rxaide.data.RxAideDatabase
+import com.example.rxaide.data.repository.ChatRepository
 import com.example.rxaide.data.repository.MedicationRepository
 
 class RxAideApplication : Application() {
@@ -14,5 +15,9 @@ class RxAideApplication : Application() {
             database.scheduleDao(),
             database.doseHistoryDao()
         )
+    }
+
+    val chatRepository by lazy {
+        ChatRepository(database.chatMessageDao())
     }
 }
