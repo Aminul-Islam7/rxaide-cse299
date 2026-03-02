@@ -1,0 +1,18 @@
+18eead7 Merge pull request #2 from Aminul-Islam7/aminul
+a6b387d Merge branch 'main' into aminul
+e8373c5 feat: Add Compose Markdown support to display formatted bot messages in chat
+08f77e3 Merge pull request #1 from Aminul-Islam7/update-2
+64f1c06 feat: Implement AI chat interface; Integrate Gemini AI for prescription analysis
+077ea0b fix: update Compose BOM to 2025.09.01 to resolve runtime crashes
+cd16ee2 feat: implement Update 2 - complete add medication form, medication list and detail screens
+a6efa36 feat: Add Home Screen UI, Implement CameraX, Add Week 1 Update
+55c7910 feat: Add updated project proposal and presentation
+2fa2116 feat: Add final project proposal; remove old drafts
+8f66eec Rename project and update description in README
+cda78d2 feat: Add proposal presentation draft
+d7330fd feat: Upload project proposal drafts
+d69b8a0 Update README.md
+0023d04 fix: Update project group no. and member NSU ID in README
+d7c1c1a fix: Update NSU ID for Tirtho
+05417b8 feat: Add project and group member details to README
+fa0b3b8 Initial commit

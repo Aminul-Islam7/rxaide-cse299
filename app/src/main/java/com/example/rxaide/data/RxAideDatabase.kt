@@ -15,7 +15,7 @@ import com.example.rxaide.data.entity.Schedule
 
 @Database(
     entities = [Medication::class, Schedule::class, DoseHistory::class, ChatMessage::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class RxAideDatabase : RoomDatabase() {
