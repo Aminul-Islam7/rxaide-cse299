@@ -76,6 +76,7 @@ import com.example.rxaide.ui.theme.MedicalBlueDark
 import com.example.rxaide.ui.theme.MedicalBlueLight
 import com.example.rxaide.ui.theme.MedicalBlueSurface
 import com.example.rxaide.viewmodel.ChatViewModel
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -335,13 +336,21 @@ private fun ChatBubble(message: ChatMessage) {
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    Text(
-                        text = message.content,
-                        color = if (isUser) Color.White
-                        else MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 21.sp
-                    )
+                    if (isUser) {
+                        Text(
+                            text = message.content,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 21.sp
+                        )
+                    } else {
+                        MarkdownText(
+                            markdown = message.content,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(4.dp))
 

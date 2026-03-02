@@ -101,6 +101,9 @@ dependencies {
     // Google Gen AI SDK (Gemini)
     implementation(libs.google.genai)
 
+    // Compose Markdown
+    implementation(libs.compose.markdown)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
