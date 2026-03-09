@@ -10,6 +10,7 @@ import com.example.rxaide.ai.GeminiService
 import com.example.rxaide.data.entity.ChatMessage
 import com.example.rxaide.data.entity.Medication
 import com.example.rxaide.data.entity.Schedule
+import com.example.rxaide.notification.ReminderScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -201,6 +202,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun generateBotReply(text: String?, imageUri: String?) {
         _isTyping.value = true
 
+        // Build medication context for text messages so the AI knows current schedules
+        val medicationContext = if (text != null) buildMedicationContext() else null
+
         val replyContent = if (!isApiKeyConfigured) {
             generateFallbackReply(text, imageUri)
         } else if (imageUri != null) {
@@ -208,12 +212,22 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             geminiService.sendImageMessage(imageUri, chatHistory)
         } else {
             val chatHistory = chatRepository.getAllMessagesList()
-            geminiService.sendTextMessage(text ?: "", chatHistory)
+            // Prepend medication context as a hidden system message
+            val contextPrefix = medicationContext ?: ""
+            val enrichedMessage = if (contextPrefix.isNotBlank()) {
+                "$contextPrefix\n\nUser message: ${text ?: ""}"
+            } else {
+                text ?: ""
+            }
+            geminiService.sendTextMessage(enrichedMessage, chatHistory)
         }
+
+        // Check for [SCHEDULE_UPDATE] action blocks and execute them
+        val displayContent = parseAndExecuteScheduleUpdates(replyContent)
 
         chatRepository.insertMessage(
             ChatMessage(
-                content = replyContent,
+                content = displayContent,
                 isFromUser = false
             )
         )
@@ -229,6 +243,108 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (text != null && replyContent.contains("Confirm & Schedule", ignoreCase = true)) {
             _quickAction.value = QuickActionType.CONFIRM_SCHEDULE
         }
+    }
+
+    /**
+     * Builds a context block with current medication names and schedule times
+     * so the AI knows what medications/schedules exist when the user asks for changes.
+     */
+    private suspend fun buildMedicationContext(): String? {
+        val medications = medicationRepository.getActiveMedicationsOnce()
+        if (medications.isEmpty()) return null
+
+        val sb = StringBuilder("[CURRENT_MEDICATIONS]\n")
+        for ((index, med) in medications.withIndex()) {
+            val schedules = medicationRepository.getSchedulesForMedicationOnce(med.id)
+            val timesStr = schedules.joinToString(", ") { s ->
+                "%02d:%02d".format(s.timeHour, s.timeMinute)
+            }
+            sb.appendLine("${index + 1}. ${med.name} ${med.dosage}${med.dosageUnit} (${med.form}) - ${med.frequency}")
+            if (timesStr.isNotBlank()) {
+                sb.appendLine("   Schedules: $timesStr")
+            }
+        }
+        sb.append("[/CURRENT_MEDICATIONS]")
+        return sb.toString()
+    }
+
+    /**
+     * Parses [SCHEDULE_UPDATE] blocks from the AI response, executes DB/WorkManager
+     * changes, and returns the display text with action blocks stripped out.
+     */
+    private suspend fun parseAndExecuteScheduleUpdates(response: String): String {
+        val pattern = Regex(
+            """\[SCHEDULE_UPDATE]\s*\n(.*?)\[/SCHEDULE_UPDATE]""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+        val match = pattern.find(response) ?: return response
+
+        val block = match.groupValues[1].trim()
+        val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+        // Parse medication name
+        val medLine = lines.firstOrNull { it.startsWith("medication:", ignoreCase = true) }
+        val medName = medLine?.substringAfter(":")?.trim() ?: return response
+
+        // Parse time changes
+        data class TimeChange(val oldHour: Int, val oldMin: Int, val newHour: Int, val newMin: Int)
+        val timeChanges = mutableListOf<TimeChange>()
+        val timePattern = Regex("""old_time:\s*(\d{1,2}):(\d{2})\s*->\s*new_time:\s*(\d{1,2}):(\d{2})""")
+        for (line in lines) {
+            val tm = timePattern.find(line)
+            if (tm != null) {
+                timeChanges.add(
+                    TimeChange(
+                        tm.groupValues[1].toInt(), tm.groupValues[2].toInt(),
+                        tm.groupValues[3].toInt(), tm.groupValues[4].toInt()
+                    )
+                )
+            }
+        }
+
+        if (timeChanges.isEmpty()) return response
+
+        // Look up medication in DB
+        val medication = medicationRepository.findActiveMedicationByName(medName)
+        if (medication == null) {
+            Log.w("ChatViewModel", "Schedule update: medication '$medName' not found")
+            return response.replace(match.value, "").trim()
+        }
+
+        // Get existing schedules
+        val schedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
+
+        // Apply each time change
+        var updatedCount = 0
+        for (change in timeChanges) {
+            val schedule = schedules.firstOrNull { s ->
+                s.timeHour == change.oldHour && s.timeMinute == change.oldMin
+            }
+            if (schedule != null) {
+                val updated = schedule.copy(
+                    timeHour = change.newHour,
+                    timeMinute = change.newMin
+                )
+                medicationRepository.updateSchedule(updated)
+                updatedCount++
+            } else {
+                Log.w("ChatViewModel", "Schedule not found for ${change.oldHour}:${change.oldMin}")
+            }
+        }
+
+        // Reschedule WorkManager reminders if changes were made
+        if (updatedCount > 0) {
+            val ctx = getApplication<RxAideApplication>()
+            ReminderScheduler.cancelRemindersForMedication(ctx, medication.id)
+            val updatedSchedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
+            ReminderScheduler.scheduleAllReminders(
+                ctx, medication, updatedSchedules, medication.notificationSoundUri
+            )
+            Log.d("ChatViewModel", "Rescheduled $updatedCount reminder(s) for ${medication.name}")
+        }
+
+        // Strip action block from displayed message
+        return response.replace(match.value, "").trim()
     }
 
     /**

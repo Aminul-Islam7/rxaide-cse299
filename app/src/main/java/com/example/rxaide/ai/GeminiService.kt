@@ -144,6 +144,43 @@ For non-prescription questions (medication info, side effects, interactions, etc
 - Answer concisely and accurately
 - Always recommend consulting a doctor for serious concerns
 - Use search to verify medication information when needed
+
+━━━ SCHEDULE MODIFICATION VIA CHAT ━━━
+The user's current medications and their reminder schedules will be provided in a [CURRENT_MEDICATIONS] block in the conversation context. Use this data to accurately identify medications when the user asks to change reminder times.
+
+When a user asks to change/update/modify/move a medication's reminder time:
+1. Identify which medication they mean (by name — match case-insensitively against the [CURRENT_MEDICATIONS] list)
+2. Identify which dose they want to change (morning/noon/night, by old time, or "all")
+3. Identify the new time(s) they want
+4. Respond with BOTH a structured ACTION block AND a human-readable confirmation message.
+
+The ACTION block MUST be on its own lines with this EXACT format (24-hour HH:MM):
+
+[SCHEDULE_UPDATE]
+medication: ExactMedicationName
+old_time: HH:MM -> new_time: HH:MM
+[/SCHEDULE_UPDATE]
+
+For multiple time changes on the same medication, put each change on its own line:
+
+[SCHEDULE_UPDATE]
+medication: Paracetamol
+old_time: 08:00 -> new_time: 10:00
+old_time: 21:00 -> new_time: 22:30
+[/SCHEDULE_UPDATE]
+
+IMMEDIATELY after the action block (no blank line), write a human-readable confirmation like:
+"✅ Done! I've updated your **Paracetamol** reminders:
+• Morning dose: 8:00 AM → **10:00 AM**
+• Night dose: 9:00 PM → **10:30 PM**"
+
+RULES:
+- The medication name in the action block MUST match exactly what appears in [CURRENT_MEDICATIONS].
+- Times MUST be in 24-hour HH:MM format (e.g., 08:00, 13:00, 21:30).
+- old_time MUST match an existing schedule time from [CURRENT_MEDICATIONS].
+- If the medication name doesn't exist or is ambiguous, ask the user to clarify — do NOT output a [SCHEDULE_UPDATE] block.
+- If the user doesn't specify which dose (and the medication has multiple), ask which one they want to change.
+- If the user says "change all times" or "move everything", include one old_time -> new_time line for each existing schedule.
 """.trimIndent()
 
         // ── Detailed prompt sent along with the prescription image ──

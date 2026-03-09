@@ -62,7 +62,8 @@ fun HomeScreen(
     onNavigateToMedications: () -> Unit,
     onNavigateToAddMedication: () -> Unit,
     onNavigateToCamera: () -> Unit,
-    onNavigateToChat: () -> Unit
+    onNavigateToChat: () -> Unit,
+    onNavigateToAdherence: () -> Unit
 ) {
     val activeMedicationCount by viewModel.activeMedicationCount.collectAsState()
     val totalTaken by viewModel.totalTakenCount.collectAsState()
@@ -193,7 +194,7 @@ fun HomeScreen(
                         icon = Icons.Default.CheckCircle,
                         title = "Adherence\nTracker",
                         gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)),
-                        onClick = onNavigateToMedications
+                        onClick = onNavigateToAdherence
                     )
                 }
             }

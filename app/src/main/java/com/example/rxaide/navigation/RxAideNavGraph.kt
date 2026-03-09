@@ -11,11 +11,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.rxaide.ui.screens.AddMedicationScreen
+import com.example.rxaide.ui.screens.AdherenceScreen
 import com.example.rxaide.ui.screens.CameraScreen
 import com.example.rxaide.ui.screens.ChatScreen
 import com.example.rxaide.ui.screens.HomeScreen
 import com.example.rxaide.ui.screens.MedicationDetailScreen
 import com.example.rxaide.ui.screens.MedicationListScreen
+import com.example.rxaide.viewmodel.AdherenceViewModel
 import com.example.rxaide.viewmodel.ChatViewModel
 import com.example.rxaide.viewmodel.MedicationViewModel
 
@@ -23,7 +25,8 @@ import com.example.rxaide.viewmodel.MedicationViewModel
 fun RxAideNavGraph(
     navController: NavHostController,
     viewModel: MedicationViewModel = viewModel(),
-    chatViewModel: ChatViewModel = viewModel()
+    chatViewModel: ChatViewModel = viewModel(),
+    adherenceViewModel: AdherenceViewModel = viewModel()
 ) {
     NavHost(
         navController = navController,
@@ -43,6 +46,9 @@ fun RxAideNavGraph(
                 },
                 onNavigateToChat = {
                     navController.navigate(Screen.Chat.route)
+                },
+                onNavigateToAdherence = {
+                    navController.navigate(Screen.AdherenceTracker.route)
                 }
             )
         }
@@ -99,6 +105,13 @@ fun RxAideNavGraph(
                 onNavigateToMedications = {
                     navController.navigate(Screen.MedicationList.route)
                 }
+            )
+        }
+
+        composable(Screen.AdherenceTracker.route) {
+            AdherenceScreen(
+                viewModel = adherenceViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

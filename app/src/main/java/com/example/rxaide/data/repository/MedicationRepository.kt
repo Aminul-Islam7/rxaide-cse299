@@ -64,4 +64,14 @@ class MedicationRepository(
 
     fun getMissedCountForMedication(medicationId: Long): Flow<Int> =
         doseHistoryDao.getMissedCountForMedication(medicationId)
+
+    // Chat-based schedule adjustment
+    suspend fun findActiveMedicationByName(name: String): Medication? =
+        medicationDao.findActiveMedicationByName(name)
+
+    suspend fun getSchedulesForMedicationOnce(medicationId: Long): List<Schedule> =
+        scheduleDao.getSchedulesForMedicationOnce(medicationId)
+
+    suspend fun getActiveMedicationsOnce(): List<Medication> =
+        medicationDao.getActiveMedicationsOnce()
 }
