@@ -7,11 +7,13 @@ import com.example.rxaide.RxAideApplication
 import com.example.rxaide.data.entity.DoseHistory
 import com.example.rxaide.data.entity.Medication
 import com.example.rxaide.data.entity.Schedule
+import com.example.rxaide.notification.ReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -60,19 +62,33 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * Inserts a medication and its schedules in one call.
-     * Calls [onComplete] on the main thread when finished.
+     * Inserts a medication and its schedules in one call,
+     * then schedules WorkManager reminders for each schedule entry.
+     *
+     * @param soundUri Optional custom notification sound URI string.
      */
     fun addMedicationWithSchedules(
         medication: Medication,
         schedules: List<Schedule>,
+        soundUri: String? = null,
         onComplete: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            val medId = repository.insertMedication(medication)
+            val savedMed = medication.copy(notificationSoundUri = soundUri)
+            val medId = repository.insertMedication(savedMed)
             if (schedules.isNotEmpty()) {
                 val linked = schedules.map { it.copy(medicationId = medId) }
                 repository.insertSchedules(linked)
+
+                // Schedule WorkManager reminders
+                val savedSchedules = repository.getSchedulesForMedication(medId).first()
+                val fullMed = savedMed.copy(id = medId)
+                ReminderScheduler.scheduleAllReminders(
+                    getApplication(),
+                    fullMed,
+                    savedSchedules,
+                    soundUri
+                )
             }
             onComplete()
         }
@@ -86,12 +102,14 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteMedication(medication: Medication) {
         viewModelScope.launch {
+            ReminderScheduler.cancelRemindersForMedication(getApplication(), medication.id)
             repository.deleteMedication(medication)
         }
     }
 
     fun deleteMedicationById(id: Long) {
         viewModelScope.launch {
+            ReminderScheduler.cancelRemindersForMedication(getApplication(), id)
             repository.deleteMedicationById(id)
         }
     }
@@ -110,6 +128,7 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteSchedulesForMedication(medicationId: Long) {
         viewModelScope.launch {
+            ReminderScheduler.cancelRemindersForMedication(getApplication(), medicationId)
             repository.deleteSchedulesForMedication(medicationId)
         }
     }

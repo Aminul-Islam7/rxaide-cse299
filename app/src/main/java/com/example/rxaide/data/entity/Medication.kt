@@ -19,6 +19,7 @@ data class Medication(
     val endDate: Long? = null,                    // null = ongoing
     val notes: String = "",                       // Additional notes
     val prescriptionImagePath: String? = null,
+    val notificationSoundUri: String? = null,  // custom ringtone URI chosen by user
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
