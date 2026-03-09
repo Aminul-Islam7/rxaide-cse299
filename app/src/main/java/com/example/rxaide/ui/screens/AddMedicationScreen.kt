@@ -129,7 +129,7 @@ fun AddMedicationScreen(
     val scope = rememberCoroutineScope()
 
     // ── Options ─────────────────────────────────────────────────────────
-    val formOptions = listOf("Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Other")
+    val formOptions = listOf("Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Nasal Spray", "Other")
     val dosageUnitOptions = listOf("mg", "ml", "mcg", "g", "tablet", "capsule", "drop", "puff")
     val frequencyOptions = listOf("Once daily", "Twice daily", "Three times daily", "Four times daily", "Weekly", "As needed")
     val mealRelationOptions = listOf("Before meal", "After meal", "With meal", "No relation")

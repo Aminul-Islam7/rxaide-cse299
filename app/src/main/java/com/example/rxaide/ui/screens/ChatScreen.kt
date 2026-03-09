@@ -1,6 +1,10 @@
 package com.example.rxaide.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,8 +12,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,8 +43,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +77,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -71,11 +85,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.rxaide.data.entity.ChatMessage
+import com.example.rxaide.ui.theme.HealingGreen
 import com.example.rxaide.ui.theme.MedicalBlue
 import com.example.rxaide.ui.theme.MedicalBlueDark
 import com.example.rxaide.ui.theme.MedicalBlueLight
 import com.example.rxaide.ui.theme.MedicalBlueSurface
 import com.example.rxaide.viewmodel.ChatViewModel
+import com.example.rxaide.viewmodel.QuickActionType
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -85,15 +101,26 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     chatViewModel: ChatViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToMedications: () -> Unit = {}
 ) {
     val messages by chatViewModel.allMessages.collectAsState()
     val isTyping by chatViewModel.isTyping.collectAsState()
+    val quickAction by chatViewModel.quickAction.collectAsState()
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    // Handle navigation events
+    val navigateToRoute by chatViewModel.navigateToRoute.collectAsState()
+    LaunchedEffect(navigateToRoute) {
+        navigateToRoute?.let {
+            chatViewModel.onNavigationHandled()
+        }
+    }
 
     // Auto-scroll to bottom when new messages arrive or typing indicator changes
-    LaunchedEffect(messages.size, isTyping) {
+    LaunchedEffect(messages.size, isTyping, quickAction) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1 + if (isTyping) 1 else 0)
         }
@@ -126,7 +153,7 @@ fun ChatScreen(
                                 fontSize = 17.sp
                             )
                             Text(
-                                if (isTyping) "Typing..." else "Online",
+                                if (isTyping) "Analyzing..." else "Online",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isTyping)
                                     MaterialTheme.colorScheme.primary
@@ -184,13 +211,33 @@ fun ChatScreen(
                 }
 
                 items(messages, key = { it.id }) { message ->
-                    ChatBubble(message = message)
+                    ChatBubble(
+                        message = message,
+                        onCopyMessage = { content ->
+                            copyToClipboard(context, content)
+                        }
+                    )
                 }
 
                 // Typing indicator
                 if (isTyping) {
                     item {
                         TypingIndicator()
+                    }
+                }
+
+                // Quick action buttons
+                if (quickAction != null && !isTyping) {
+                    item {
+                        QuickActionButtons(
+                            actionType = quickAction!!,
+                            onConfirmSchedule = {
+                                chatViewModel.confirmAndSchedule()
+                            },
+                            onViewMedications = {
+                                onNavigateToMedications()
+                            }
+                        )
                     }
                 }
             }
@@ -206,6 +253,72 @@ fun ChatScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+/**
+ * Quick action buttons that appear after prescription scans or scheduling.
+ */
+@Composable
+private fun QuickActionButtons(
+    actionType: QuickActionType,
+    onConfirmSchedule: () -> Unit,
+    onViewMedications: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        when (actionType) {
+            QuickActionType.CONFIRM_SCHEDULE -> {
+                ElevatedButton(
+                    onClick = onConfirmSchedule,
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = HealingGreen,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 3.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "✅ Confirm & Schedule",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+            QuickActionType.VIEW_MEDICATIONS -> {
+                ElevatedButton(
+                    onClick = onViewMedications,
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MedicalBlue,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 3.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MedicalServices,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "📋 My Medications",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -278,8 +391,12 @@ private fun WelcomeCard() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    message: ChatMessage,
+    onCopyMessage: (String) -> Unit
+) {
     val isUser = message.isFromUser
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
 
@@ -290,7 +407,12 @@ private fun ChatBubble(message: ChatMessage) {
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
         Box(
-            modifier = Modifier.widthIn(max = screenWidth * 0.82f)
+            modifier = Modifier
+                .widthIn(max = screenWidth * 0.82f)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { onCopyMessage(message.content) }
+                )
         ) {
             Surface(
                 shape = RoundedCornerShape(
@@ -354,14 +476,37 @@ private fun ChatBubble(message: ChatMessage) {
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = formatTimestamp(message.timestamp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isUser) Color.White.copy(alpha = 0.7f)
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = 10.sp,
-                        modifier = Modifier.align(Alignment.End)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Copy icon for bot messages
+                        if (!isUser) {
+                            val context = LocalContext.current
+                            IconButton(
+                                onClick = { onCopyMessage(message.content) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ContentCopy,
+                                    contentDescription = "Copy message",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+
+                        Text(
+                            text = formatTimestamp(message.timestamp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isUser) Color.White.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
         }
@@ -489,6 +634,16 @@ private fun ChatInputBar(
             }
         }
     }
+}
+
+/**
+ * Copy text to system clipboard and show a toast.
+ */
+private fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("RxAide Message", text)
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(context, "Message copied", Toast.LENGTH_SHORT).show()
 }
 
 private fun formatTimestamp(timestamp: Long): String {

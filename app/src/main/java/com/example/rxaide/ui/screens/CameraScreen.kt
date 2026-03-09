@@ -10,12 +10,14 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -33,9 +35,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,10 +50,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,13 +59,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import coil.compose.rememberAsyncImagePainter
+import com.example.rxaide.ui.theme.HealingGreen
 import com.example.rxaide.ui.theme.MedicalBlue
 import com.example.rxaide.viewmodel.MedicationViewModel
 import java.text.SimpleDateFormat
@@ -81,7 +86,9 @@ fun CameraScreen(
 
     var hasCameraPermission by remember { mutableStateOf(false) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
-    var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
+
+    // Preview state — captured image URI for confirmation screen
+    var capturedPreviewUri by remember { mutableStateOf<Uri?>(null) }
 
     // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -90,12 +97,12 @@ fun CameraScreen(
         hasCameraPermission = isGranted
     }
 
-    // Gallery picker
+    // Gallery picker — goes directly to confirmation
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            viewModel.setCapturedImagePath(it.toString())
+            capturedPreviewUri = it
         }
     }
 
@@ -108,12 +115,18 @@ fun CameraScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Scan Prescription",
+                        if (capturedPreviewUri != null) "Review Capture" else "Scan Prescription",
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (capturedPreviewUri != null) {
+                            capturedPreviewUri = null // Go back to camera
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -129,32 +142,60 @@ fun CameraScreen(
             )
         }
     ) { innerPadding ->
-        if (hasCameraPermission) {
+        if (capturedPreviewUri != null) {
+            // ══════════════════════════════════════════════════════════
+            // CONFIRMATION SCREEN — show captured image with Retake / Send
+            // ══════════════════════════════════════════════════════════
+            CaptureConfirmationScreen(
+                imageUri = capturedPreviewUri!!,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                onRetake = {
+                    capturedPreviewUri = null
+                },
+                onSend = {
+                    // Set the captured image path — NavGraph's LaunchedEffect
+                    // will pick this up and send it to chat
+                    viewModel.setCapturedImagePath(capturedPreviewUri.toString())
+                }
+            )
+        } else if (hasCameraPermission) {
+            // ══════════════════════════════════════════════════════════
+            // CAMERA VIEW
+            // ══════════════════════════════════════════════════════════
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Camera Preview
+                // Camera Preview — FIT_CENTER so what you see = what you capture
                 AndroidView(
                     factory = { ctx ->
-                        val previewView = PreviewView(ctx)
+                        val previewView = PreviewView(ctx).apply {
+                            scaleType = PreviewView.ScaleType.FIT_CENTER
+                            setBackgroundColor(android.graphics.Color.BLACK)
+                        }
                         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
 
-                            val preview = Preview.Builder().build().also {
-                                it.surfaceProvider = previewView.surfaceProvider
-                            }
+                            val preview = Preview.Builder()
+                                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                                .build()
+                                .also {
+                                    it.surfaceProvider = previewView.surfaceProvider
+                                }
 
                             val imageCaptureBuilder = ImageCapture.Builder()
                                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
 
                             imageCapture = imageCaptureBuilder.build()
 
                             val cameraSelector = CameraSelector.Builder()
-                                .requireLensFacing(lensFacing)
+                                .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                                 .build()
 
                             try {
@@ -175,26 +216,7 @@ fun CameraScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Prescription overlay guide
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(400.dp)
-                            .border(
-                                2.dp,
-                                Color.White.copy(alpha = 0.5f),
-                                RoundedCornerShape(8.dp)
-                            )
-                    )
-                }
-
-                // Guidance text
+                // Tip text at the top
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,16 +224,14 @@ fun CameraScreen(
                         .padding(top = 16.dp)
                 ) {
                     Text(
-                        text = "Align your prescription within the frame",
+                        text = "📋 Ensure good lighting, steady hands, and clear focus",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                Color.Black.copy(alpha = 0.5f)
-                            )
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
                     )
                 }
 
@@ -261,7 +281,7 @@ fun CameraScreen(
                                 onClick = {
                                     imageCapture?.let { capture ->
                                         takePhoto(context, capture) { uri ->
-                                            viewModel.setCapturedImagePath(uri.toString())
+                                            capturedPreviewUri = uri
                                         }
                                     }
                                 },
@@ -286,39 +306,15 @@ fun CameraScreen(
                             )
                         }
 
-                        // Flip Camera button
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = {
-                                    lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK)
-                                        CameraSelector.LENS_FACING_FRONT
-                                    else
-                                        CameraSelector.LENS_FACING_BACK
-                                },
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.2f))
-                            ) {
-                                Icon(
-                                    Icons.Default.FlipCameraAndroid,
-                                    contentDescription = "Flip Camera",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Flip",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
-                        }
+                        // Spacer to balance the layout (replacing the removed Flip button)
+                        Spacer(modifier = Modifier.size(56.dp))
                     }
                 }
             }
         } else {
-            // No camera permission state
+            // ══════════════════════════════════════════════════════════
+            // NO PERMISSION STATE
+            // ══════════════════════════════════════════════════════════
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -371,6 +367,101 @@ fun CameraScreen(
                             Text("Upload Instead")
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Confirmation screen showing the captured image with "Retake" and "Send" buttons.
+ */
+@Composable
+private fun CaptureConfirmationScreen(
+    imageUri: Uri,
+    modifier: Modifier = Modifier,
+    onRetake: () -> Unit,
+    onSend: () -> Unit
+) {
+    Box(
+        modifier = modifier.background(Color.Black)
+    ) {
+        // Full image preview — FIT so the user sees exactly what was captured
+        Image(
+            painter = rememberAsyncImagePainter(model = imageUri),
+            contentDescription = "Captured prescription",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 120.dp),
+            contentScale = ContentScale.Fit
+        )
+
+        // Bottom action bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(
+                    Color.Black.copy(alpha = 0.8f),
+                    RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                )
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Retake button
+                Button(
+                    onClick = onRetake,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.2f),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Retake",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Send button
+                Button(
+                    onClick = onSend,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HealingGreen,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Send to Chat",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
                 }
             }
         }

@@ -95,7 +95,10 @@ fun RxAideNavGraph(
         composable(Screen.Chat.route) {
             ChatScreen(
                 chatViewModel = chatViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMedications = {
+                    navController.navigate(Screen.MedicationList.route)
+                }
             )
         }
 
