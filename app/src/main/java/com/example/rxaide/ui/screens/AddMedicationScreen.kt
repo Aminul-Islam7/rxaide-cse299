@@ -1,6 +1,12 @@
 package com.example.rxaide.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +38,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +58,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -74,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -116,6 +127,31 @@ fun AddMedicationScreen(
     var showTimePicker by remember { mutableStateOf(false) }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
+
+    // Custom notification sound
+    var selectedSoundUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedSoundName by remember { mutableStateOf("Default") }
+    val context = LocalContext.current
+
+    // Ringtone picker launcher
+    val ringtoneLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        if (uri != null) {
+            selectedSoundUri = uri
+            val ringtone = RingtoneManager.getRingtone(context, uri)
+            selectedSoundName = ringtone?.getTitle(context) ?: "Custom"
+        } else {
+            selectedSoundUri = null
+            selectedSoundName = "Default"
+        }
+    }
+
+    // Notification permission launcher (Android 13+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* granted or not — we proceed either way */ }
 
     // Validation
     var nameError by remember { mutableStateOf(false) }
@@ -548,7 +584,7 @@ fun AddMedicationScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.AccessTime,
+                                    Icons.Default.NotificationsActive,
                                     contentDescription = null,
                                     tint = MedicalBlue,
                                     modifier = Modifier.size(20.dp)
@@ -556,12 +592,18 @@ fun AddMedicationScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 val amPm = if (hour < 12) "AM" else "PM"
                                 val displayHour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
-                                Text(
-                                    text = String.format("%d:%02d %s", displayHour, minute, amPm),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = String.format("%d:%02d %s", displayHour, minute, amPm),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "\uD83D\uDD14 Notification will ring",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                                 IconButton(onClick = { scheduleTimes.removeAt(index) }) {
                                     Icon(
                                         Icons.Default.Close,
@@ -579,7 +621,13 @@ fun AddMedicationScreen(
 
             // Add Time Button
             Button(
-                onClick = { showTimePicker = true },
+                onClick = {
+                    // Request notification permission on Android 13+ before opening picker
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    showTimePicker = true
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -587,10 +635,49 @@ fun AddMedicationScreen(
                     contentColor = MedicalBlue
                 )
             ) {
-                Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Reminder Time")
+                Text("\uD83D\uDD14 Add Reminder Time")
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ════════════════════════════════════════════════════════════
+            // SECTION: Notification Sound Picker
+            // ════════════════════════════════════════════════════════════
+            SectionTitle("Notification Sound")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = {
+                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM or RingtoneManager.TYPE_RINGTONE)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Choose Notification Sound")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        if (selectedSoundUri != null) {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, selectedSoundUri)
+                        }
+                    }
+                    ringtoneLauncher.launch(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(20.dp), tint = MedicalBlue)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "\uD83C\uDFB5 $selectedSoundName",
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
+            Text(
+                text = "Choose a custom tune for your medication reminders",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -677,7 +764,11 @@ fun AddMedicationScreen(
                         )
                     }
 
-                    viewModel.addMedicationWithSchedules(medication, schedules) {
+                    viewModel.addMedicationWithSchedules(
+                        medication,
+                        schedules,
+                        soundUri = selectedSoundUri?.toString()
+                    ) {
                         // Navigate back on success
                     }
 
