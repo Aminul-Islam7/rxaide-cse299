@@ -38,4 +38,10 @@ interface MedicationDao {
 
     @Query("SELECT COUNT(*) FROM medications WHERE isActive = 1")
     fun getActiveMedicationCount(): Flow<Int>
+
+    @Query("SELECT * FROM medications WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND isActive = 1 LIMIT 1")
+    suspend fun findActiveMedicationByName(name: String): Medication?
+
+    @Query("SELECT * FROM medications WHERE isActive = 1 ORDER BY createdAt DESC")
+    suspend fun getActiveMedicationsOnce(): List<Medication>
 }
