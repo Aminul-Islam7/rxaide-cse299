@@ -3,7 +3,6 @@ package com.example.rxaide.notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.media.AudioAttributes
 
 /**
  * Creates the single notification channel used by medication reminders.
@@ -16,10 +15,15 @@ object RxAideNotificationChannel {
     private const val CHANNEL_DESC = "Notifications to remind you to take your medications on time"
 
     fun create(context: Context) {
-        val audioAttributes = AudioAttributes.Builder()
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-            .build()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // If the channel already exists with a non-silent sound (from a
+        // previous app version), delete it so it gets recreated silently.
+        manager.getNotificationChannel(CHANNEL_ID)?.let { existing ->
+            if (existing.sound != null) {
+                manager.deleteNotificationChannel(CHANNEL_ID)
+            }
+        }
 
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -28,13 +32,12 @@ object RxAideNotificationChannel {
         ).apply {
             description = CHANNEL_DESC
             enableVibration(true)
-            setSound(
-                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
-                audioAttributes
-            )
+            // Channel is intentionally SILENT — custom sounds are played
+            // programmatically by NotificationSoundPlayer so that each
+            // medication can have its own ringtone.
+            setSound(null, null)
         }
 
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(channel)
     }
 }

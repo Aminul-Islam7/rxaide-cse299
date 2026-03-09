@@ -32,6 +32,9 @@ class ReminderActionReceiver : BroadcastReceiver() {
             else -> return
         }
 
+        // Stop any playing notification sound
+        NotificationSoundPlayer.stop()
+
         // Dismiss the notification
         val notificationId = (medicationId * 100 + scheduleId).toInt()
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

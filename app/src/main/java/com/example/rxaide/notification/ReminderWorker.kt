@@ -110,13 +110,16 @@ class ReminderWorker(
             .setContentIntent(tapPending)
             .addAction(R.drawable.ic_launcher_foreground, "✅ Taken", takenPending)
             .addAction(R.drawable.ic_launcher_foreground, "❌ Missed", missedPending)
-
-        // Apply custom sound if set
-        if (!soundUriString.isNullOrBlank()) {
-            builder.setSound(Uri.parse(soundUriString))
-        }
+            // Channel is silent; sound is played programmatically below
+            .setSilent(true)
 
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(notificationId, builder.build())
+
+        // Play the custom (or default) notification sound via MediaPlayer
+        // because Android 8+ ignores per-notification setSound() in favour
+        // of the channel configuration.
+        val soundUri = if (!soundUriString.isNullOrBlank()) Uri.parse(soundUriString) else null
+        NotificationSoundPlayer.play(applicationContext, soundUri)
     }
 }
