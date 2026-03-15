@@ -29,6 +29,20 @@ enum class QuickActionType {
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
+    companion object {
+        private const val TAG = "ChatViewModel"
+
+        // Patterns the user might type to confirm scheduling
+        private val CONFIRMATION_PATTERNS = listOf(
+            "yes", "yeah", "yep", "yup", "sure", "ok", "okay",
+            "confirm", "continue", "go ahead", "create", "schedule",
+            "correct", "looks good", "all good", "that's right", "right",
+            "please create", "create reminders", "set reminders",
+            "looks correct", "everything is correct", "it's correct",
+            "yes please", "do it"
+        )
+    }
+
     private val chatRepository = (application as RxAideApplication).chatRepository
     private val medicationRepository = (application as RxAideApplication).repository
     private val geminiService = GeminiService(application.applicationContext)
@@ -60,6 +74,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             // Clear quick action when user sends a message
             _quickAction.value = null
 
+            // Check if this is a confirmation message and a Confirm button was available
+            val isConfirmation = isConfirmationMessage(text)
+            val wasWaitingForConfirmation = isConfirmation && hasPrescriptionSummaryInHistory()
+
             // Insert user message
             chatRepository.insertMessage(
                 ChatMessage(
@@ -67,8 +85,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     isFromUser = true
                 )
             )
-            // Generate bot reply
-            generateBotReply(text, imageUri = null)
+
+            if (wasWaitingForConfirmation) {
+                // User typed a confirmation instead of clicking the button — trigger scheduling
+                performScheduling()
+            } else {
+                // Normal text message — generate bot reply
+                generateBotReply(text, imageUri = null)
+            }
         }
     }
 
@@ -104,99 +128,122 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
 
-            _isTyping.value = true
+            performScheduling()
+        }
+    }
 
-            if (!isApiKeyConfigured) {
-                chatRepository.insertMessage(
-                    ChatMessage(
-                        content = "⚠️ **Gemini API key not configured.** Cannot create automatic schedules.",
-                        isFromUser = false
-                    )
-                )
-                _isTyping.value = false
-                return@launch
-            }
+    /**
+     * Shared scheduling logic used by both button click and text confirmation.
+     */
+    private suspend fun performScheduling() {
+        _isTyping.value = true
 
-            // Request structured JSON from Gemini
-            val chatHistory = chatRepository.getAllMessagesList()
-            val medications = geminiService.requestMedicationJson(chatHistory)
-
-            if (medications == null || medications.isEmpty()) {
-                chatRepository.insertMessage(
-                    ChatMessage(
-                        content = "⚠️ Unable to parse medication data for scheduling. " +
-                            "Please try adding medications manually from the **My Medications** page.",
-                        isFromUser = false
-                    )
-                )
-                _isTyping.value = false
-                _quickAction.value = QuickActionType.VIEW_MEDICATIONS
-                return@launch
-            }
-
-            // Create Medication + Schedule entries in the database
-            var successCount = 0
-            for (med in medications) {
-                try {
-                    // Calculate end date from duration
-                    val endDate = calculateEndDate(med.duration)
-
-                    val medication = Medication(
-                        name = med.name,
-                        dosage = med.dosage,
-                        dosageUnit = med.dosageUnit,
-                        form = med.form,
-                        frequency = med.frequency,
-                        mealRelation = med.mealRelation,
-                        instructions = med.instructions,
-                        duration = med.duration,
-                        startDate = System.currentTimeMillis(),
-                        endDate = endDate,
-                        notes = med.notes,
-                        isActive = true
-                    )
-
-                    val medId = medicationRepository.insertMedication(medication)
-
-                    // Create schedules based on frequency
-                    val scheduleTimes = getDefaultScheduleTimes(med.frequency)
-                    val schedules = scheduleTimes.map { (hour, minute) ->
-                        Schedule(
-                            medicationId = medId,
-                            timeHour = hour,
-                            timeMinute = minute
-                        )
-                    }
-                    if (schedules.isNotEmpty()) {
-                        medicationRepository.insertSchedules(schedules)
-                    }
-                    successCount++
-                } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Failed to create medication: ${med.name}", e)
-                }
-            }
-
-            // Send confirmation message
-            val reminderDetails = buildString {
-                appendLine("✅ **Reminders created!** I've set up $successCount medication reminder(s) with default timing:")
-                appendLine()
-                appendLine("• 🌅 Morning doses → **8:00 AM**")
-                appendLine("• 🌞 Noon doses → **1:00 PM**")
-                appendLine("• 🌙 Night doses → **9:00 PM**")
-                appendLine()
-                appendLine("You can adjust the reminder times in **My Medications** to match your personal schedule, or tell me here what times work better for you.")
-            }
-
+        if (!isApiKeyConfigured) {
             chatRepository.insertMessage(
                 ChatMessage(
-                    content = reminderDetails,
+                    content = "⚠️ **Gemini API key not configured.** Cannot create automatic schedules.",
                     isFromUser = false
                 )
             )
+            _isTyping.value = false
+            return
+        }
 
+        // Request structured JSON from Gemini
+        val chatHistory = chatRepository.getAllMessagesList()
+        val medications = geminiService.requestMedicationJson(chatHistory)
+
+        if (medications == null || medications.isEmpty()) {
+            chatRepository.insertMessage(
+                ChatMessage(
+                    content = "⚠️ Unable to parse medication data for scheduling. " +
+                        "Please try adding medications manually from the **My Medications** page.",
+                    isFromUser = false
+                )
+            )
             _isTyping.value = false
             _quickAction.value = QuickActionType.VIEW_MEDICATIONS
+            return
         }
+
+        // Create Medication + Schedule entries in the database
+        var successCount = 0
+        val createdMeds = mutableListOf<String>()
+
+        for (med in medications) {
+            try {
+                // Calculate end date from duration
+                val endDate = calculateEndDate(med.duration)
+
+                val medication = Medication(
+                    name = med.name,
+                    dosage = med.dosage,
+                    dosageUnit = med.dosageUnit,
+                    form = med.form,
+                    frequency = med.frequency,
+                    mealRelation = med.mealRelation,
+                    instructions = med.instructions,
+                    duration = med.duration,
+                    startDate = System.currentTimeMillis(),
+                    endDate = endDate,
+                    notes = med.notes,
+                    isActive = true
+                )
+
+                val medId = medicationRepository.insertMedication(medication)
+
+                // Create schedules based on frequency
+                val scheduleTimes = getDefaultScheduleTimes(med.frequency)
+                val schedules = scheduleTimes.map { (hour, minute) ->
+                    Schedule(
+                        medicationId = medId,
+                        timeHour = hour,
+                        timeMinute = minute
+                    )
+                }
+                if (schedules.isNotEmpty()) {
+                    medicationRepository.insertSchedules(schedules)
+                }
+
+                // Schedule WorkManager reminders
+                try {
+                    val ctx = getApplication<RxAideApplication>()
+                    val insertedMed = medication.copy(id = medId)
+                    ReminderScheduler.scheduleAllReminders(ctx, insertedMed, schedules, null)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to schedule reminders for ${med.name}", e)
+                }
+
+                successCount++
+                createdMeds.add(med.name)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create medication: ${med.name}", e)
+            }
+        }
+
+        // Verify the medications actually exist in the database
+        val verifiedCount = verifyMedicationsCreated(createdMeds)
+
+        // Send confirmation message
+        val reminderDetails = buildString {
+            appendLine("✅ **Reminders created!** I've set up $verifiedCount medication reminder(s) with default timing:")
+            appendLine()
+            appendLine("• 🌅 Morning doses → **8:00 AM**")
+            appendLine("• 🌞 Noon doses → **1:00 PM**")
+            appendLine("• 🌙 Night doses → **9:00 PM**")
+            appendLine()
+            appendLine("You can adjust the reminder times in **My Medications** to match your personal schedule, or tell me here what times work better for you.")
+        }
+
+        chatRepository.insertMessage(
+            ChatMessage(
+                content = reminderDetails,
+                isFromUser = false
+            )
+        )
+
+        _isTyping.value = false
+        _quickAction.value = QuickActionType.VIEW_MEDICATIONS
     }
 
     private suspend fun generateBotReply(text: String?, imageUri: String?) {
@@ -222,8 +269,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             geminiService.sendTextMessage(enrichedMessage, chatHistory)
         }
 
-        // Check for [SCHEDULE_UPDATE] action blocks and execute them
-        val displayContent = parseAndExecuteScheduleUpdates(replyContent)
+        // Parse and execute ALL action blocks, then get the display text
+        val displayContent = parseAndExecuteAllActions(replyContent)
 
         chatRepository.insertMessage(
             ChatMessage(
@@ -243,6 +290,294 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (text != null && replyContent.contains("Confirm & Schedule", ignoreCase = true)) {
             _quickAction.value = QuickActionType.CONFIRM_SCHEDULE
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  ACTION BLOCK PARSING & EXECUTION
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Master method: parses all action block types from the AI response,
+     * executes them, and returns the display text with action blocks stripped.
+     */
+    private suspend fun parseAndExecuteAllActions(response: String): String {
+        var result = response
+
+        // 1. Schedule updates
+        result = parseAndExecuteScheduleUpdates(result)
+
+        // 2. Medication updates
+        result = parseAndExecuteMedicationUpdates(result)
+
+        // 3. Medication deletions
+        result = parseAndExecuteMedicationDeletes(result)
+
+        return result.trim()
+    }
+
+    /**
+     * Parses [SCHEDULE_UPDATE] blocks from the AI response, executes DB/WorkManager
+     * changes, and returns the display text with action blocks stripped out.
+     */
+    private suspend fun parseAndExecuteScheduleUpdates(response: String): String {
+        val pattern = Regex(
+            """\[SCHEDULE_UPDATE]\s*\n(.*?)\[/SCHEDULE_UPDATE]""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+
+        var result = response
+        val matches = pattern.findAll(response).toList()
+
+        for (match in matches) {
+            val block = match.groupValues[1].trim()
+            val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+            // Parse medication name
+            val medLine = lines.firstOrNull { it.startsWith("medication:", ignoreCase = true) }
+            val medName = medLine?.substringAfter(":")?.trim() ?: continue
+
+            // Parse time changes
+            data class TimeChange(val oldHour: Int, val oldMin: Int, val newHour: Int, val newMin: Int)
+            val timeChanges = mutableListOf<TimeChange>()
+            val timePattern = Regex("""old_time:\s*(\d{1,2}):(\d{2})\s*->\s*new_time:\s*(\d{1,2}):(\d{2})""")
+            for (line in lines) {
+                val tm = timePattern.find(line)
+                if (tm != null) {
+                    timeChanges.add(
+                        TimeChange(
+                            tm.groupValues[1].toInt(), tm.groupValues[2].toInt(),
+                            tm.groupValues[3].toInt(), tm.groupValues[4].toInt()
+                        )
+                    )
+                }
+            }
+
+            if (timeChanges.isEmpty()) continue
+
+            // Look up medication in DB
+            val medication = medicationRepository.findActiveMedicationByName(medName)
+            if (medication == null) {
+                Log.w(TAG, "Schedule update: medication '$medName' not found")
+                result = result.replace(match.value, "").trim()
+                continue
+            }
+
+            // Get existing schedules
+            val schedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
+
+            // Apply each time change
+            var updatedCount = 0
+            for (change in timeChanges) {
+                val schedule = schedules.firstOrNull { s ->
+                    s.timeHour == change.oldHour && s.timeMinute == change.oldMin
+                }
+                if (schedule != null) {
+                    val updated = schedule.copy(
+                        timeHour = change.newHour,
+                        timeMinute = change.newMin
+                    )
+                    medicationRepository.updateSchedule(updated)
+                    updatedCount++
+                } else {
+                    Log.w(TAG, "Schedule not found for ${change.oldHour}:${change.oldMin}")
+                }
+            }
+
+            // Reschedule WorkManager reminders if changes were made
+            if (updatedCount > 0) {
+                try {
+                    val ctx = getApplication<RxAideApplication>()
+                    ReminderScheduler.cancelRemindersForMedication(ctx, medication.id)
+                    val updatedSchedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
+                    ReminderScheduler.scheduleAllReminders(
+                        ctx, medication, updatedSchedules, medication.notificationSoundUri
+                    )
+                    Log.d(TAG, "Rescheduled $updatedCount reminder(s) for ${medication.name}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reschedule reminders for ${medication.name}", e)
+                }
+            }
+
+            // Strip action block from displayed message
+            result = result.replace(match.value, "").trim()
+        }
+
+        return result
+    }
+
+    /**
+     * Parses [MEDICATION_UPDATE] blocks and applies field changes to the database.
+     */
+    private suspend fun parseAndExecuteMedicationUpdates(response: String): String {
+        val pattern = Regex(
+            """\[MEDICATION_UPDATE]\s*\n(.*?)\[/MEDICATION_UPDATE]""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+
+        var result = response
+        val matches = pattern.findAll(response).toList()
+
+        for (match in matches) {
+            val block = match.groupValues[1].trim()
+            val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+            // Parse medication name
+            val medLine = lines.firstOrNull { it.startsWith("medication:", ignoreCase = true) }
+            val medName = medLine?.substringAfter(":")?.trim() ?: continue
+
+            // Look up medication in DB
+            val medication = medicationRepository.findActiveMedicationByName(medName)
+            if (medication == null) {
+                Log.w(TAG, "Medication update: '$medName' not found")
+                result = result.replace(match.value, "").trim()
+                continue
+            }
+            val med: Medication = medication // non-null smart cast
+
+            // Parse field changes (everything except the medication: line)
+            var updated = med
+            for (line in lines) {
+                if (line.startsWith("medication:", ignoreCase = true)) continue
+                val colonIdx = line.indexOf(':')
+                if (colonIdx < 0) continue
+
+                val field = line.substring(0, colonIdx).trim().lowercase()
+                val value = line.substring(colonIdx + 1).trim()
+
+                updated = when (field) {
+                    "name" -> updated.copy(name = value)
+                    "dosage" -> updated.copy(dosage = value)
+                    "dosageunit" -> updated.copy(dosageUnit = value)
+                    "form" -> updated.copy(form = value)
+                    "frequency" -> updated.copy(frequency = value)
+                    "mealrelation" -> updated.copy(mealRelation = value)
+                    "instructions" -> updated.copy(instructions = value)
+                    "notes" -> updated.copy(notes = value)
+                    "duration" -> updated.copy(duration = value)
+                    else -> {
+                        Log.w(TAG, "Unknown field in MEDICATION_UPDATE: $field")
+                        updated
+                    }
+                }
+            }
+
+            // Save to database
+            medicationRepository.updateMedication(updated.copy(updatedAt = System.currentTimeMillis()))
+            Log.d(TAG, "Updated medication '${medication.name}' -> '${updated.name}'")
+
+            // Strip action block
+            result = result.replace(match.value, "").trim()
+        }
+
+        return result
+    }
+
+    /**
+     * Parses [MEDICATION_DELETE] blocks and removes medications from the database.
+     */
+    private suspend fun parseAndExecuteMedicationDeletes(response: String): String {
+        val pattern = Regex(
+            """\[MEDICATION_DELETE]\s*\n(.*?)\[/MEDICATION_DELETE]""",
+            RegexOption.DOT_MATCHES_ALL
+        )
+
+        var result = response
+        val matches = pattern.findAll(response).toList()
+
+        for (match in matches) {
+            val block = match.groupValues[1].trim()
+            val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+            val medLine = lines.firstOrNull { it.startsWith("medication:", ignoreCase = true) }
+            val medName = medLine?.substringAfter(":")?.trim() ?: continue
+
+            val medication = medicationRepository.findActiveMedicationByName(medName)
+            if (medication == null) {
+                Log.w(TAG, "Medication delete: '$medName' not found")
+                result = result.replace(match.value, "").trim()
+                continue
+            }
+
+            // Cancel reminders first
+            try {
+                val ctx = getApplication<RxAideApplication>()
+                ReminderScheduler.cancelRemindersForMedication(ctx, medication.id)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to cancel reminders for ${medication.name}", e)
+            }
+
+            // Delete schedules and medication
+            medicationRepository.deleteSchedulesForMedication(medication.id)
+            medicationRepository.deleteMedication(medication)
+            Log.d(TAG, "Deleted medication '${medication.name}'")
+
+            result = result.replace(match.value, "").trim()
+        }
+
+        return result
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  HELPER METHODS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Check if a message looks like a confirmation (user saying "yes", "confirm", etc.)
+     */
+    private fun isConfirmationMessage(text: String): Boolean {
+        val lower = text.trim().lowercase()
+        return CONFIRMATION_PATTERNS.any { pattern ->
+            lower == pattern || lower.startsWith("$pattern ") || lower.startsWith("$pattern,") ||
+                lower.startsWith("$pattern.") || lower.startsWith("$pattern!")
+        }
+    }
+
+    /**
+     * Check if there's a recent prescription summary in chat history
+     * that hasn't been scheduled yet — i.e., the last bot message contains
+     * "Prescription Summary" and no scheduling confirmation has been sent after it.
+     */
+    private suspend fun hasPrescriptionSummaryInHistory(): Boolean {
+        val messages = chatRepository.getAllMessagesList()
+        if (messages.isEmpty()) return false
+
+        // Walk backward through messages looking for the latest bot message
+        // that contains "Prescription Summary" without a scheduling confirmation after it
+        var foundSummary = false
+        for (i in messages.indices.reversed()) {
+            val msg = messages[i]
+            if (!msg.isFromUser) {
+                if (msg.content.contains("Reminders created", ignoreCase = true)) {
+                    // Already scheduled — don't re-trigger
+                    return false
+                }
+                if (msg.content.contains("Prescription Summary", ignoreCase = true) ||
+                    msg.content.contains("Confirm & Schedule", ignoreCase = true)
+                ) {
+                    foundSummary = true
+                    break
+                }
+                // If the last bot message doesn't contain a summary, no confirmation needed
+                break
+            }
+        }
+        return foundSummary
+    }
+
+    /**
+     * Verify that medications with the given names actually exist in the database.
+     */
+    private suspend fun verifyMedicationsCreated(names: List<String>): Int {
+        var verified = 0
+        for (name in names) {
+            val med = medicationRepository.findActiveMedicationByName(name)
+            if (med != null) {
+                verified++
+            } else {
+                Log.w(TAG, "Verification failed: medication '$name' not found after insert")
+            }
+        }
+        return verified
     }
 
     /**
@@ -269,85 +604,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Parses [SCHEDULE_UPDATE] blocks from the AI response, executes DB/WorkManager
-     * changes, and returns the display text with action blocks stripped out.
-     */
-    private suspend fun parseAndExecuteScheduleUpdates(response: String): String {
-        val pattern = Regex(
-            """\[SCHEDULE_UPDATE]\s*\n(.*?)\[/SCHEDULE_UPDATE]""",
-            RegexOption.DOT_MATCHES_ALL
-        )
-        val match = pattern.find(response) ?: return response
-
-        val block = match.groupValues[1].trim()
-        val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
-
-        // Parse medication name
-        val medLine = lines.firstOrNull { it.startsWith("medication:", ignoreCase = true) }
-        val medName = medLine?.substringAfter(":")?.trim() ?: return response
-
-        // Parse time changes
-        data class TimeChange(val oldHour: Int, val oldMin: Int, val newHour: Int, val newMin: Int)
-        val timeChanges = mutableListOf<TimeChange>()
-        val timePattern = Regex("""old_time:\s*(\d{1,2}):(\d{2})\s*->\s*new_time:\s*(\d{1,2}):(\d{2})""")
-        for (line in lines) {
-            val tm = timePattern.find(line)
-            if (tm != null) {
-                timeChanges.add(
-                    TimeChange(
-                        tm.groupValues[1].toInt(), tm.groupValues[2].toInt(),
-                        tm.groupValues[3].toInt(), tm.groupValues[4].toInt()
-                    )
-                )
-            }
-        }
-
-        if (timeChanges.isEmpty()) return response
-
-        // Look up medication in DB
-        val medication = medicationRepository.findActiveMedicationByName(medName)
-        if (medication == null) {
-            Log.w("ChatViewModel", "Schedule update: medication '$medName' not found")
-            return response.replace(match.value, "").trim()
-        }
-
-        // Get existing schedules
-        val schedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
-
-        // Apply each time change
-        var updatedCount = 0
-        for (change in timeChanges) {
-            val schedule = schedules.firstOrNull { s ->
-                s.timeHour == change.oldHour && s.timeMinute == change.oldMin
-            }
-            if (schedule != null) {
-                val updated = schedule.copy(
-                    timeHour = change.newHour,
-                    timeMinute = change.newMin
-                )
-                medicationRepository.updateSchedule(updated)
-                updatedCount++
-            } else {
-                Log.w("ChatViewModel", "Schedule not found for ${change.oldHour}:${change.oldMin}")
-            }
-        }
-
-        // Reschedule WorkManager reminders if changes were made
-        if (updatedCount > 0) {
-            val ctx = getApplication<RxAideApplication>()
-            ReminderScheduler.cancelRemindersForMedication(ctx, medication.id)
-            val updatedSchedules = medicationRepository.getSchedulesForMedicationOnce(medication.id)
-            ReminderScheduler.scheduleAllReminders(
-                ctx, medication, updatedSchedules, medication.notificationSoundUri
-            )
-            Log.d("ChatViewModel", "Rescheduled $updatedCount reminder(s) for ${medication.name}")
-        }
-
-        // Strip action block from displayed message
-        return response.replace(match.value, "").trim()
-    }
-
-    /**
      * Returns default schedule times based on frequency.
      */
     private fun getDefaultScheduleTimes(frequency: String): List<Pair<Int, Int>> {
@@ -367,7 +623,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun calculateEndDate(duration: String): Long? {
         if (duration.isBlank() || duration.equals("Ongoing", ignoreCase = true) ||
-            duration.equals("Continue", ignoreCase = true)) {
+            duration.equals("Continue", ignoreCase = true)
+        ) {
             return null
         }
 
