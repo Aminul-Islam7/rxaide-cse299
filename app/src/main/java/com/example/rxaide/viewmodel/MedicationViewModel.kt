@@ -100,6 +100,45 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * Updates a medication and replaces all its schedules,
+     * then reschedules WorkManager reminders.
+     */
+    fun updateMedicationWithSchedules(
+        medication: Medication,
+        schedules: List<Schedule>,
+        soundUri: String? = null,
+        onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val updatedMed = medication.copy(
+                notificationSoundUri = soundUri,
+                updatedAt = System.currentTimeMillis()
+            )
+            repository.updateMedication(updatedMed)
+
+            // Cancel old reminders
+            ReminderScheduler.cancelRemindersForMedication(getApplication(), medication.id)
+
+            // Delete old schedules and insert new ones
+            repository.deleteSchedulesForMedication(medication.id)
+            if (schedules.isNotEmpty()) {
+                val linked = schedules.map { it.copy(medicationId = medication.id) }
+                repository.insertSchedules(linked)
+
+                // Reschedule reminders
+                val savedSchedules = repository.getSchedulesForMedication(medication.id).first()
+                ReminderScheduler.scheduleAllReminders(
+                    getApplication(),
+                    updatedMed,
+                    savedSchedules,
+                    soundUri
+                )
+            }
+            onComplete()
+        }
+    }
+
     fun deleteMedication(medication: Medication) {
         viewModelScope.launch {
             ReminderScheduler.cancelRemindersForMedication(getApplication(), medication.id)

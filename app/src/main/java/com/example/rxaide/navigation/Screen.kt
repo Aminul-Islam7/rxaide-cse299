@@ -10,4 +10,7 @@ sealed class Screen(val route: String) {
     data object MedicationDetail : Screen("medication_detail/{medicationId}") {
         fun createRoute(medicationId: Long) = "medication_detail/$medicationId"
     }
+    data object EditMedication : Screen("edit_medication/{medicationId}") {
+        fun createRoute(medicationId: Long) = "edit_medication/$medicationId"
+    }
 }

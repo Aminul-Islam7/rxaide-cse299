@@ -192,7 +192,6 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding()
         ) {
             // Messages list
             LazyColumn(
@@ -242,7 +241,7 @@ fun ChatScreen(
                 }
             }
 
-            // Input bar
+            // Input bar — imePadding only here so it stays above keyboard
             ChatInputBar(
                 inputText = inputText,
                 onInputChange = { inputText = it },
@@ -251,7 +250,8 @@ fun ChatScreen(
                         chatViewModel.sendTextMessage(inputText.trim())
                         inputText = ""
                     }
-                }
+                },
+                modifier = Modifier.imePadding()
             )
         }
     }
@@ -577,11 +577,13 @@ private fun TypingIndicator() {
 private fun ChatInputBar(
     inputText: String,
     onInputChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
+        modifier = modifier
     ) {
         Row(
             modifier = Modifier

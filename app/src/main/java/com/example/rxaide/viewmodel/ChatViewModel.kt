@@ -286,9 +286,39 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             _quickAction.value = QuickActionType.CONFIRM_SCHEDULE
         }
 
-        // Also detect if the AI asked for confirmation in a text reply (e.g., after corrections)
-        if (text != null && replyContent.contains("Confirm & Schedule", ignoreCase = true)) {
-            _quickAction.value = QuickActionType.CONFIRM_SCHEDULE
+        // Re-show Confirm button after correction conversations —
+        // detect when AI asks for confirmation or mentions scheduling
+        if (text != null && imageUri == null) {
+            val lower = displayContent.lowercase()
+            val looksLikeConfirmationRequest = lower.contains("confirm & schedule") ||
+                lower.contains("confirm and schedule") ||
+                lower.contains("create reminders") ||
+                lower.contains("create the schedules") ||
+                lower.contains("set up reminders") ||
+                lower.contains("everything correct") ||
+                lower.contains("looks correct") ||
+                (lower.contains("correct") && lower.contains("?")) ||
+                (lower.contains("schedule") && lower.contains("?"))
+
+            if (looksLikeConfirmationRequest && hasPrescriptionSummaryInHistory()) {
+                _quickAction.value = QuickActionType.CONFIRM_SCHEDULE
+            }
+
+            // Safety net: if the bot CLAIMS it created schedules but didn't,
+            // actually trigger scheduling so the user isn't lied to.
+            val claimsScheduled = lower.contains("reminders have been") ||
+                lower.contains("reminders set up") ||
+                lower.contains("schedules created") ||
+                lower.contains("schedules have been") ||
+                lower.contains("set up reminders for") ||
+                lower.contains("i've set up") ||
+                lower.contains("i've created") ||
+                (lower.contains("creating medication reminders") && lower.contains("done"))
+
+            if (claimsScheduled && hasPrescriptionSummaryInHistory()) {
+                // Bot said it did it but it didn't — actually do it now
+                performScheduling()
+            }
         }
     }
 
@@ -533,35 +563,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Check if there's a recent prescription summary in chat history
-     * that hasn't been scheduled yet — i.e., the last bot message contains
-     * "Prescription Summary" and no scheduling confirmation has been sent after it.
+     * Check if there's a prescription summary anywhere in chat history
+     * that hasn't been scheduled yet. Walks ALL messages backward:
+     * - If "Reminders created" is found first → already scheduled → false
+     * - If "Prescription Summary" is found first → needs scheduling → true
+     * This correctly handles the correction flow where intermediate bot
+     * messages exist between the scan and the user's confirmation.
      */
     private suspend fun hasPrescriptionSummaryInHistory(): Boolean {
         val messages = chatRepository.getAllMessagesList()
         if (messages.isEmpty()) return false
 
-        // Walk backward through messages looking for the latest bot message
-        // that contains "Prescription Summary" without a scheduling confirmation after it
-        var foundSummary = false
         for (i in messages.indices.reversed()) {
             val msg = messages[i]
-            if (!msg.isFromUser) {
-                if (msg.content.contains("Reminders created", ignoreCase = true)) {
-                    // Already scheduled — don't re-trigger
-                    return false
-                }
-                if (msg.content.contains("Prescription Summary", ignoreCase = true) ||
-                    msg.content.contains("Confirm & Schedule", ignoreCase = true)
-                ) {
-                    foundSummary = true
-                    break
-                }
-                // If the last bot message doesn't contain a summary, no confirmation needed
-                break
+            if (msg.isFromUser) continue
+
+            // If we find a scheduling confirmation first → already done
+            if (msg.content.contains("Reminders created", ignoreCase = true)) {
+                return false
+            }
+
+            // If we find a prescription summary → not yet scheduled
+            if (msg.content.contains("Prescription Summary", ignoreCase = true)) {
+                return true
             }
         }
-        return foundSummary
+        return false
     }
 
     /**

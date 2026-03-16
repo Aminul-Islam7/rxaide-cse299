@@ -14,6 +14,7 @@ import com.example.rxaide.ui.screens.AddMedicationScreen
 import com.example.rxaide.ui.screens.AdherenceScreen
 import com.example.rxaide.ui.screens.CameraScreen
 import com.example.rxaide.ui.screens.ChatScreen
+import com.example.rxaide.ui.screens.EditMedicationScreen
 import com.example.rxaide.ui.screens.HomeScreen
 import com.example.rxaide.ui.screens.MedicationDetailScreen
 import com.example.rxaide.ui.screens.MedicationListScreen
@@ -123,6 +124,23 @@ fun RxAideNavGraph(
         ) { backStackEntry ->
             val medicationId = backStackEntry.arguments?.getLong("medicationId") ?: return@composable
             MedicationDetailScreen(
+                viewModel = viewModel,
+                medicationId = medicationId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { id ->
+                    navController.navigate(Screen.EditMedication.createRoute(id))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.EditMedication.route,
+            arguments = listOf(
+                navArgument("medicationId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val medicationId = backStackEntry.arguments?.getLong("medicationId") ?: return@composable
+            EditMedicationScreen(
                 viewModel = viewModel,
                 medicationId = medicationId,
                 onNavigateBack = { navController.popBackStack() }
