@@ -31,7 +31,7 @@ data class DoseHistory(
     val id: Long = 0,
     val medicationId: Long,
     val scheduleId: Long? = null,
-    val status: String,          // "taken", "missed", "skipped"
+    val status: String,          // "unmarked", "taken", "missed"
     val scheduledTime: Long,     // timestamp when dose was scheduled
     val actionTime: Long? = null, // timestamp when user took action
     val notes: String = "",

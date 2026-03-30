@@ -637,7 +637,7 @@ fun AddMedicationScreen(
             ) {
                 Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("\uD83D\uDD14 Add Reminder Time")
+                Text("Add Reminder Time")
             }
 
             Spacer(modifier = Modifier.height(16.dp))

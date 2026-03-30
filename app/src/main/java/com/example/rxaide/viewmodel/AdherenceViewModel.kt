@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 enum class TimePeriod(val label: String) {
@@ -135,5 +136,12 @@ class AdherenceViewModel(application: Application) : AndroidViewModel(applicatio
             TimePeriod.ALL -> cal.timeInMillis = 0
         }
         return cal.timeInMillis to end
+    }
+
+    // Update dose status (from adherence tracker)
+    fun updateDoseStatus(doseId: Long, newStatus: String) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            repository.updateDoseStatus(doseId, newStatus)
+        }
     }
 }

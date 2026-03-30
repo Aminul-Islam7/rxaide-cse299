@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Handles notification action buttons ("Taken" / "Missed").
- * Logs the action into the DoseHistory table and dismisses the notification.
+ * Updates the DoseHistory status from "unmarked" to "taken" or "missed".
  */
 class ReminderActionReceiver : BroadcastReceiver() {
 
@@ -40,17 +40,28 @@ class ReminderActionReceiver : BroadcastReceiver() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(notificationId)
 
-        // Log dose history
+        // Update the most recent unmarked dose for this medication to the new status.
+        // If no unmarked row exists (e.g., legacy data), create a direct status record.
         val app = context.applicationContext as RxAideApplication
         CoroutineScope(Dispatchers.IO).launch {
-            app.repository.insertDoseHistory(
-                DoseHistory(
-                    medicationId = medicationId,
-                    status = status,
-                    scheduledTime = System.currentTimeMillis(),
-                    actionTime = System.currentTimeMillis()
-                )
+            val updatedRows = app.repository.updateLatestUnmarkedDoseStatus(
+                medicationId = medicationId,
+                scheduleId = scheduleId.takeIf { it != -1L },
+                newStatus = status
             )
+
+            if (updatedRows == 0) {
+                val now = System.currentTimeMillis()
+                app.repository.insertDoseHistory(
+                    DoseHistory(
+                        medicationId = medicationId,
+                        scheduleId = scheduleId.takeIf { it != -1L },
+                        status = status,
+                        scheduledTime = now,
+                        actionTime = now
+                    )
+                )
+            }
         }
     }
 }

@@ -13,6 +13,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.rxaide.MainActivity
 import com.example.rxaide.R
+import com.example.rxaide.RxAideApplication
+import com.example.rxaide.data.entity.DoseHistory
 
 /**
  * WorkManager worker that fires a medication-reminder notification.
@@ -41,6 +43,18 @@ class ReminderWorker(
         val soundUriString = inputData.getString(KEY_SOUND_URI)
 
         if (medicationId == -1L) return Result.failure()
+
+        // Create dose history entry with "unmarked" status when reminder is triggered
+        val app = applicationContext as RxAideApplication
+        val currentTime = System.currentTimeMillis()
+        app.repository.insertDoseHistory(
+            DoseHistory(
+                medicationId = medicationId,
+                scheduleId = if (scheduleId != -1L) scheduleId else null,
+                status = "unmarked",
+                scheduledTime = currentTime
+            )
+        )
 
         showNotification(medicationId, scheduleId, name, dosage, dosageUnit, soundUriString)
         return Result.success()

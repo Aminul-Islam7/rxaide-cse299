@@ -49,6 +49,7 @@ class MedicationRepository(
     val allDoseHistory: Flow<List<DoseHistory>> = doseHistoryDao.getAllHistory()
     val totalTakenCount: Flow<Int> = doseHistoryDao.getTotalTakenCount()
     val totalMissedCount: Flow<Int> = doseHistoryDao.getTotalMissedCount()
+    val totalUnmarkedCount: Flow<Int> = doseHistoryDao.getTotalUnmarkedCount()
 
     fun getHistoryForMedication(medicationId: Long): Flow<List<DoseHistory>> =
         doseHistoryDao.getHistoryForMedication(medicationId)
@@ -58,6 +59,19 @@ class MedicationRepository(
 
     suspend fun insertDoseHistory(doseHistory: DoseHistory): Long =
         doseHistoryDao.insert(doseHistory)
+
+    suspend fun updateDoseStatus(doseId: Long, newStatus: String): Unit =
+        doseHistoryDao.updateDoseStatus(doseId, newStatus)
+
+    suspend fun updateLatestUnmarkedDoseStatus(
+        medicationId: Long,
+        scheduleId: Long?,
+        newStatus: String
+    ): Int = doseHistoryDao.updateLatestUnmarkedDoseStatus(
+        medicationId = medicationId,
+        scheduleId = scheduleId,
+        newStatus = newStatus
+    )
 
     fun getTakenCountForMedication(medicationId: Long): Flow<Int> =
         doseHistoryDao.getTakenCountForMedication(medicationId)

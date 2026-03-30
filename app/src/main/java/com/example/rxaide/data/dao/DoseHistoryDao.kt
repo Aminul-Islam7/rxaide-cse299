@@ -17,6 +17,31 @@ interface DoseHistoryDao {
     @Delete
     suspend fun delete(doseHistory: DoseHistory)
 
+    @Query("UPDATE dose_history SET status = :newStatus, actionTime = :actionTime WHERE id = :doseId")
+    suspend fun updateDoseStatus(doseId: Long, newStatus: String, actionTime: Long = System.currentTimeMillis())
+
+    @Query(
+        """
+        UPDATE dose_history
+        SET status = :newStatus, actionTime = :actionTime
+        WHERE id = (
+            SELECT id
+            FROM dose_history
+            WHERE medicationId = :medicationId
+              AND (:scheduleId IS NULL OR scheduleId = :scheduleId)
+              AND status = 'unmarked'
+            ORDER BY scheduledTime DESC
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun updateLatestUnmarkedDoseStatus(
+        medicationId: Long,
+        scheduleId: Long?,
+        newStatus: String,
+        actionTime: Long = System.currentTimeMillis()
+    ): Int
+
     @Query("SELECT * FROM dose_history WHERE medicationId = :medicationId ORDER BY scheduledTime DESC")
     fun getHistoryForMedication(medicationId: Long): Flow<List<DoseHistory>>
 
@@ -37,4 +62,7 @@ interface DoseHistoryDao {
 
     @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'missed'")
     fun getTotalMissedCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'unmarked'")
+    fun getTotalUnmarkedCount(): Flow<Int>
 }

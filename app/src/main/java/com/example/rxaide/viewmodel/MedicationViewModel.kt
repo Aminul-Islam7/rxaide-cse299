@@ -38,6 +38,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     val totalMissedCount: StateFlow<Int> = repository.totalMissedCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val totalUnmarkedCount: StateFlow<Int> = repository.totalUnmarkedCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // Captured image path state
     private val _capturedImagePath = MutableStateFlow<String?>(null)
     val capturedImagePath: StateFlow<String?> = _capturedImagePath.asStateFlow()
