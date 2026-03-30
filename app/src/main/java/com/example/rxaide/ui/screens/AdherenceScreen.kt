@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -40,6 +44,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -79,14 +86,15 @@ fun AdherenceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Adherence Tracker", fontWeight = FontWeight.Bold) },
+                title = { Text("Adherence Tracker", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -100,17 +108,19 @@ fun AdherenceScreen(
         ) {
             // Overall compliance card
             item {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 OverallComplianceCard(overallPercent, totalTaken, totalMissed)
             }
 
             // Per-medication section header
             if (perMedStats.isNotEmpty()) {
                 item {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Per Medication",
+                        text = "By Medication",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 }
                 items(perMedStats, key = { it.medication.id }) { stat ->
@@ -118,29 +128,31 @@ fun AdherenceScreen(
                 }
             }
 
-            // Dose history section
+            // Period filter chips
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Dose History",
+                    text = "History",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
-            }
-
-            // Period filter chips
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    TimePeriod.entries.forEach { period ->
+                    items(TimePeriod.entries.size) { index ->
+                        val period = TimePeriod.entries[index]
                         FilterChip(
                             selected = selectedPeriod == period,
                             onClick = { viewModel.selectPeriod(period) },
                             label = { Text(period.label, fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MedicalBlue,
-                                selectedLabelColor = Color.White
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
@@ -159,14 +171,22 @@ fun AdherenceScreen(
                             Icon(
                                 Icons.Default.Medication,
                                 contentDescription = null,
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(56.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 "No dose history yet",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Doses will appear here as you take them",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -182,11 +202,12 @@ fun AdherenceScreen(
                             text = dateLabel,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                         )
                     }
                     items(entries, key = { it.doseHistory.id }) { entry ->
-                        DoseHistoryRow(entry)
+                        DoseHistoryRow(entry, viewModel)
                     }
                 }
             }
@@ -374,54 +395,102 @@ private fun MedicationStatCard(stat: MedicationAdherenceStat) {
 }
 
 @Composable
-private fun DoseHistoryRow(entry: DoseHistoryEntry) {
-    val isTaken = entry.doseHistory.status == "taken"
-    val statusColor = if (isTaken) HealingGreen else AlertRed
-    val statusIcon = if (isTaken) Icons.Default.CheckCircle else Icons.Default.Cancel
+private fun DoseHistoryRow(entry: DoseHistoryEntry, viewModel: AdherenceViewModel) {
+    val status = entry.doseHistory.status
+    val isTaken = status == "taken"
+    val isMissed = status == "missed"
+    
+    val statusColor = when {
+        isTaken -> HealingGreen
+        isMissed -> AlertRed
+        else -> MaterialTheme.colorScheme.outline
+    }
+    
+    val statusIcon = when {
+        isTaken -> Icons.Default.CheckCircle
+        isMissed -> Icons.Default.Cancel
+        else -> Icons.Default.Medication
+    }
+    
     val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    
+    var expanded by remember { mutableStateOf(false) }
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { expanded = true }
             .background(
                 color = statusColor.copy(alpha = 0.06f),
                 shape = RoundedCornerShape(12.dp)
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(statusColor.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                statusIcon,
-                contentDescription = entry.doseHistory.status,
-                tint = statusColor,
-                modifier = Modifier.size(20.dp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(statusColor.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    statusIcon,
+                    contentDescription = status,
+                    tint = statusColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    entry.medicationName,
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    timeFormat.format(Date(entry.doseHistory.scheduledTime)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                when {
+                    isTaken -> "Taken"
+                    isMissed -> "Missed"
+                    else -> "Unmarked"
+                },
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = statusColor
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                entry.medicationName,
-                fontWeight = FontWeight.Medium,
-                style = MaterialTheme.typography.bodyMedium
+        
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Mark as Unmarked") },
+                onClick = {
+                    viewModel.updateDoseStatus(entry.doseHistory.id, "unmarked")
+                    expanded = false
+                }
             )
-            Text(
-                timeFormat.format(Date(entry.doseHistory.scheduledTime)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            DropdownMenuItem(
+                text = { Text("Mark as Taken") },
+                onClick = {
+                    viewModel.updateDoseStatus(entry.doseHistory.id, "taken")
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Mark as Missed") },
+                onClick = {
+                    viewModel.updateDoseStatus(entry.doseHistory.id, "missed")
+                    expanded = false
+                }
             )
         }
-        Text(
-            if (isTaken) "Taken" else "Missed",
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-            color = statusColor
-        )
     }
 }
 
