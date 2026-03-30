@@ -667,7 +667,7 @@ fun AddMedicationScreen(
                 Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(20.dp), tint = MedicalBlue)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "\uD83C\uDFB5 $selectedSoundName",
+                    text = selectedSoundName,
                     modifier = Modifier.weight(1f)
                 )
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(20.dp))

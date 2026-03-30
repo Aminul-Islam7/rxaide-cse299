@@ -1,11 +1,14 @@
 package com.example.rxaide.ui.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
@@ -57,7 +61,6 @@ import com.example.rxaide.ui.theme.MedicalBlueDark
 import com.example.rxaide.ui.theme.AlertOrange
 import com.example.rxaide.ui.theme.AlertRed
 import com.example.rxaide.viewmodel.MedicationViewModel
-import java.util.Calendar
 
 @Composable
 fun HomeScreen(
@@ -72,6 +75,12 @@ fun HomeScreen(
     val totalTaken by viewModel.totalTakenCount.collectAsState()
     val totalMissed by viewModel.totalMissedCount.collectAsState()
     val pendingDoses by viewModel.totalUnmarkedCount.collectAsState()
+    val adherencePercent = calculateAdherence(totalTaken, totalMissed)
+    val animatedAdherence by animateIntAsState(
+        targetValue = adherencePercent,
+        animationSpec = tween(durationMillis = 700),
+        label = "adherencePercent"
+    )
 
     Scaffold(
         floatingActionButton = {
@@ -98,9 +107,13 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .background(
                         brush = Brush.linearGradient(
-                            colors = listOf(MedicalBlue.copy(alpha = 0.05f), Color.Transparent)
+                            colors = listOf(
+                                MedicalBlue.copy(alpha = 0.15f),
+                                MedicalBlue.copy(alpha = 0.05f),
+                                Color.Transparent
+                            )
                         ),
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
                     )
                     .padding(24.dp)
             ) {
@@ -108,34 +121,43 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Greeting with time-based personalization
-                    Text(
-                        text = getGreeting(),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Stay on track with your medications",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // App Logo
                     Image(
                         painter = painterResource(id = R.drawable.rxaide_logo_with_name),
                         contentDescription = "RxAide Logo",
-                        modifier = Modifier.height(80.dp)
+                        modifier = Modifier
+                            .height(100.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Adherence Score",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$animatedAdherence%",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (animatedAdherence >= 80) HealingGreen else AlertOrange
+                            )
+                        }
+                    }
                 }
             }
 
@@ -148,33 +170,36 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MedicalBlue.copy(alpha = 0.1f)
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StatBadge(
-                        value = activeMedicationCount.toString(),
+                    StatMetricCard(
+                        modifier = Modifier.fillMaxWidth(0.31f),
+                        value = activeMedicationCount,
                         label = "Active",
                         color = MedicalBlue,
-                        icon = "MED"
+                        icon = Icons.Default.Medication
                     )
-                    StatBadge(
-                        value = totalTaken.toString(),
+                    StatMetricCard(
+                        modifier = Modifier.fillMaxWidth(0.31f),
+                        value = totalTaken,
                         label = "Taken",
                         color = HealingGreen,
-                        icon = "OK"
+                        icon = Icons.Default.CheckCircle
                     )
-                    StatBadge(
-                        value = totalMissed.toString(),
+                    StatMetricCard(
+                        modifier = Modifier.fillMaxWidth(0.31f),
+                        value = totalMissed,
                         label = "Missed",
                         color = AlertRed,
-                        icon = "MIS"
+                        icon = Icons.Default.Cancel
                     )
                 }
             }
@@ -210,45 +235,45 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Row 1
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    GridButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.CameraAlt,
-                        title = "Scan\nPrescription",
-                        gradientColors = listOf(MedicalBlue, MedicalBlueDark),
-                        onClick = onNavigateToCamera
-                    )
-                    GridButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Add,
-                        title = "Add\nMedication",
-                        gradientColors = listOf(HealingGreen, HealingGreenDark),
-                        onClick = onNavigateToAddMedication
-                    )
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val cellWidth = (maxWidth - 16.dp) / 2
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        GridButton(
+                            modifier = Modifier.width(cellWidth),
+                            icon = Icons.Default.CameraAlt,
+                            title = "Scan\nPrescription",
+                            gradientColors = listOf(MedicalBlue, MedicalBlueDark),
+                            onClick = onNavigateToCamera
+                        )
+                        GridButton(
+                            modifier = Modifier.width(cellWidth),
+                            icon = Icons.Default.Add,
+                            title = "Add\nMedication",
+                            gradientColors = listOf(HealingGreen, HealingGreenDark),
+                            onClick = onNavigateToAddMedication
+                        )
+                    }
                 }
 
                 // Row 2
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    GridButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Medication,
-                        title = "My\nMedications",
-                        gradientColors = listOf(AlertOrange, Color(0xFFD97706)),
-                        onClick = onNavigateToMedications
-                    )
-                    GridButton(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.CheckCircle,
-                        title = "Adherence\nTracker",
-                        gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)),
-                        onClick = onNavigateToAdherence
-                    )
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val cellWidth = (maxWidth - 16.dp) / 2
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        GridButton(
+                            modifier = Modifier.width(cellWidth),
+                            icon = Icons.Default.Medication,
+                            title = "My\nMedications",
+                            gradientColors = listOf(AlertOrange, Color(0xFFD97706)),
+                            onClick = onNavigateToMedications
+                        )
+                        GridButton(
+                            modifier = Modifier.width(cellWidth),
+                            icon = Icons.Default.CheckCircle,
+                            title = "Adherence\nTracker",
+                            gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)),
+                            onClick = onNavigateToAdherence
+                        )
+                    }
                 }
             }
 
@@ -303,17 +328,18 @@ private fun PendingDoseCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = headline,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -328,31 +354,53 @@ private fun PendingDoseCard(
 }
 
 @Composable
-private fun StatBadge(
-    value: String,
+private fun StatMetricCard(
+    modifier: Modifier = Modifier,
+    value: Int,
     label: String,
     color: Color,
-    icon: String = ""
+    icon: ImageVector
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = icon,
-            fontSize = 24.sp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp
-        )
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = tween(durationMillis = 700),
+        label = "${label}Count"
+    )
+
+    Card(
+        modifier = modifier
+            .padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = animatedValue.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
     }
 }
 
@@ -407,11 +455,7 @@ private fun GridButton(
     }
 }
 
-private fun getGreeting(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when (hour) {
-        in 0..11 -> "Good Morning"
-        in 12..17 -> "Good Afternoon"
-        else -> "Good Evening"
-    }
+private fun calculateAdherence(taken: Int, missed: Int): Int {
+    val total = taken + missed
+    return if (total == 0) 0 else ((taken.toFloat() / total.toFloat()) * 100f).toInt()
 }
