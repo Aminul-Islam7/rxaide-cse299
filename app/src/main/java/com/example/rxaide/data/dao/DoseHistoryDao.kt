@@ -57,6 +57,9 @@ interface DoseHistoryDao {
     @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'missed' AND medicationId = :medicationId")
     fun getMissedCountForMedication(medicationId: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'unmarked' AND medicationId = :medicationId")
+    fun getUnmarkedCountForMedication(medicationId: Long): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'taken'")
     fun getTotalTakenCount(): Flow<Int>
 
@@ -65,4 +68,26 @@ interface DoseHistoryDao {
 
     @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'unmarked'")
     fun getTotalUnmarkedCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM dose_history WHERE status = 'unmarked' AND scheduledTime BETWEEN :startOfDay AND :endOfDay")
+    fun getUnmarkedCountForDay(startOfDay: Long, endOfDay: Long): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM dose_history WHERE status = :status AND scheduledTime BETWEEN :start AND :end")
+    fun getCountByStatusBetween(status: String, start: Long, end: Long): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM dose_history WHERE status = :status")
+    fun getCountByStatus(status: String): Flow<Int>
+
+    @Query("""
+        SELECT COUNT(*) FROM dose_history
+        WHERE medicationId = :medicationId
+          AND scheduleId = :scheduleId
+          AND scheduledTime BETWEEN :dayStart AND :dayEnd
+    """)
+    suspend fun getDoseCountForScheduleOnDay(
+        medicationId: Long,
+        scheduleId: Long,
+        dayStart: Long,
+        dayEnd: Long
+    ): Int
 }

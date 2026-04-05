@@ -1,8 +1,5 @@
 package com.example.rxaide.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,11 +23,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Medication
-import androidx.compose.material.icons.filled.Restaurant
+import com.example.rxaide.ui.util.medicationFormIcon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,8 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,7 +58,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationListScreen(
     viewModel: MedicationViewModel,
@@ -74,28 +69,7 @@ fun MedicationListScreen(
     var medicationToDelete by remember { mutableStateOf<Medication?>(null) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "My Medications",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToAddMedication,
@@ -107,61 +81,90 @@ fun MedicationListScreen(
             }
         }
     ) { innerPadding ->
-
-        if (medications.isEmpty()) {
-            // Empty state
-            Box(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // Inline header
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MedicalBlue.copy(alpha = 0.06f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocalPharmacy,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No medications yet",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Tap + to add your first medication",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
+                Text(
+                    text = "My Medications",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${medications.size} medication${if (medications.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                items(
-                    items = medications,
-                    key = { it.id }
-                ) { medication ->
-                    MedicationCard(
-                        medication = medication,
-                        onClick = { onNavigateToDetail(medication.id) },
-                        onDelete = { medicationToDelete = medication }
-                    )
+            if (medications.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalPharmacy,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No medications yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap + to add your first medication",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+                    items(
+                        items = medications,
+                        key = { it.id }
+                    ) { medication ->
+                        MedicationCard(
+                            medication = medication,
+                            onClick = { onNavigateToDetail(medication.id) },
+                            onDelete = { medicationToDelete = medication }
+                        )
+                    }
+
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
             }
         }
 
@@ -199,7 +202,6 @@ private fun MedicationCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    // Determine status: if endDate is set and in the past → "Completed", otherwise "Active"
     val isCompleted = medication.endDate != null && medication.endDate < System.currentTimeMillis()
     val statusText = if (medication.isActive && !isCompleted) "Active" else "Completed"
     val isActive = medication.isActive && !isCompleted
@@ -209,19 +211,19 @@ private fun MedicationCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Medicine icon with status color
+            // Medicine icon
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(
                         if (isActive) MedicalBlue.copy(alpha = 0.1f)
@@ -230,15 +232,15 @@ private fun MedicationCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Medication,
+                    imageVector = medicationFormIcon(medication.form),
                     contentDescription = null,
                     tint = if (isActive) MedicalBlue
                     else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -253,13 +255,11 @@ private fun MedicationCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-
-                    // Active/Completed badge
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (isActive) HealingGreen.copy(alpha = 0.15f)
+                                if (isActive) HealingGreen.copy(alpha = 0.12f)
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -274,22 +274,32 @@ private fun MedicationCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
-                // Dosage with unit + form
-                Text(
-                    text = buildString {
-                        append(medication.dosage)
-                        if (medication.dosageUnit.isNotBlank()) append(" ${medication.dosageUnit}")
-                        if (medication.form.isNotBlank()) append(" • ${medication.form}")
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                val medMeta = buildList {
+                    if (medication.dosage.isNotBlank()) {
+                        add(
+                            buildString {
+                                append(medication.dosage)
+                                if (medication.dosageUnit.isNotBlank()) append(" ${medication.dosageUnit}")
+                            }
+                        )
+                    }
+                    if (medication.form.isNotBlank()) {
+                        add(medication.form)
+                    }
+                }
 
-                // Frequency + meal relation
+                if (medMeta.isNotEmpty()) {
+                    Text(
+                        text = medMeta.joinToString(" • "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
                 val subtitleParts = mutableListOf<String>()
                 if (medication.frequency.isNotBlank()) subtitleParts.add(medication.frequency)
                 if (medication.mealRelation.isNotBlank() && medication.mealRelation != "No relation") {
@@ -299,13 +309,12 @@ private fun MedicationCard(
                     Text(
                         text = subtitleParts.joinToString(" • "),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Date range
                 val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
                 val dateInfo = buildString {
                     append(dateFormat.format(Date(medication.startDate)))
@@ -315,7 +324,7 @@ private fun MedicationCard(
                 Text(
                     text = dateInfo,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
             }
 
@@ -323,8 +332,8 @@ private fun MedicationCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = AlertRed.copy(alpha = 0.6f),
-                    modifier = Modifier.size(22.dp)
+                    tint = AlertRed.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }

@@ -41,6 +41,23 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     val totalUnmarkedCount: StateFlow<Int> = repository.totalUnmarkedCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // Today's unmarked count — for bottom nav badge
+    val todayUnmarkedCount: StateFlow<Int> = run {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        cal.set(java.util.Calendar.MINUTE, 59)
+        cal.set(java.util.Calendar.SECOND, 59)
+        cal.set(java.util.Calendar.MILLISECOND, 999)
+        val end = cal.timeInMillis
+        repository.getUnmarkedCountForDay(start, end)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    }
+
     // Captured image path state
     private val _capturedImagePath = MutableStateFlow<String?>(null)
     val capturedImagePath: StateFlow<String?> = _capturedImagePath.asStateFlow()

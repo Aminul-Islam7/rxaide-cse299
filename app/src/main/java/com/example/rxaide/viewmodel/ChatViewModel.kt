@@ -113,6 +113,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteMessage(messageId: Long) {
+        viewModelScope.launch {
+            chatRepository.deleteMessage(messageId)
+        }
+    }
+
     /**
      * Called when user taps "✅ Confirm & Schedule" quick action button.
      */
@@ -174,11 +180,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 // Calculate end date from duration
                 val endDate = calculateEndDate(med.duration)
+                val normalizedDosage = med.dosage.trim()
+                val normalizedUnit = if (normalizedDosage.isBlank()) "" else med.dosageUnit.trim()
 
                 val medication = Medication(
                     name = med.name,
-                    dosage = med.dosage,
-                    dosageUnit = med.dosageUnit,
+                    dosage = normalizedDosage,
+                    dosageUnit = normalizedUnit,
                     form = med.form,
                     frequency = med.frequency,
                     mealRelation = med.mealRelation,
@@ -476,8 +484,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
                 updated = when (field) {
                     "name" -> updated.copy(name = value)
-                    "dosage" -> updated.copy(dosage = value)
-                    "dosageunit" -> updated.copy(dosageUnit = value)
+                    "dosage" -> {
+                        val normalizedDosage = value.trim()
+                        updated.copy(
+                            dosage = normalizedDosage,
+                            dosageUnit = if (normalizedDosage.isBlank()) "" else updated.dosageUnit
+                        )
+                    }
+                    "dosageunit" -> updated.copy(dosageUnit = if (updated.dosage.isBlank()) "" else value.trim())
                     "form" -> updated.copy(form = value)
                     "frequency" -> updated.copy(frequency = value)
                     "mealrelation" -> updated.copy(mealRelation = value)

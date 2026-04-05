@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
             entity = Medication::class,
             parentColumns = ["id"],
             childColumns = ["medicationId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.SET_NULL
         ),
         ForeignKey(
             entity = Schedule::class,
@@ -29,7 +29,7 @@ import androidx.room.PrimaryKey
 data class DoseHistory(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val medicationId: Long,
+    val medicationId: Long? = null,
     val scheduleId: Long? = null,
     val status: String,          // "unmarked", "taken", "missed"
     val scheduledTime: Long,     // timestamp when dose was scheduled

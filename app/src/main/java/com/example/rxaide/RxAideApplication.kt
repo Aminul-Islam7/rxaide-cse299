@@ -4,6 +4,7 @@ import android.app.Application
 import com.example.rxaide.data.RxAideDatabase
 import com.example.rxaide.data.repository.ChatRepository
 import com.example.rxaide.data.repository.MedicationRepository
+import com.example.rxaide.notification.DoseGenerationWorker
 import com.example.rxaide.notification.RxAideNotificationChannel
 
 class RxAideApplication : Application() {
@@ -11,6 +12,9 @@ class RxAideApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         RxAideNotificationChannel.create(this)
+
+        // Generate any missing dose records on startup
+        DoseGenerationWorker.enqueue(this)
     }
 
     val database by lazy { RxAideDatabase.getDatabase(this) }

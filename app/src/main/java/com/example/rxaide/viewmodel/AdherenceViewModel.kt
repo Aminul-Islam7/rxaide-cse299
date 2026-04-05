@@ -19,18 +19,19 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 enum class TimePeriod(val label: String) {
-    TODAY("Today"),
-    WEEK("This Week"),
+    ALL("All Time"),
     MONTH("This Month"),
-    ALL("All Time")
+    WEEK("This Week"),
+    TODAY("Today")
 }
 
 data class MedicationAdherenceStat(
     val medication: Medication,
     val takenCount: Int,
-    val missedCount: Int
+    val missedCount: Int,
+    val unmarkedCount: Int
 ) {
-    val total get() = takenCount + missedCount
+    val total get() = takenCount + missedCount + unmarkedCount
     val adherencePercent get() = if (total > 0) (takenCount.toFloat() / total * 100f) else 0f
 }
 
@@ -58,6 +59,54 @@ class AdherenceViewModel(application: Application) : AndroidViewModel(applicatio
     val totalMissedCount: StateFlow<Int> = repository.totalMissedCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val totalUnmarkedCount: StateFlow<Int> = repository.totalUnmarkedCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // Today's unmarked count — used for badge
+    val todayUnmarkedCount: StateFlow<Int> = run {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        val end = cal.timeInMillis
+        repository.getUnmarkedCountForDay(start, end)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    }
+
+    // Period-scoped taken/missed counts
+    val periodTakenCount: StateFlow<Int> = _selectedPeriod.flatMapLatest { period ->
+        val (start, end) = periodRange(period)
+        if (period == TimePeriod.ALL) {
+            repository.getCountByStatus("taken")
+        } else {
+            repository.getCountByStatusBetween("taken", start, end)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val periodMissedCount: StateFlow<Int> = _selectedPeriod.flatMapLatest { period ->
+        if (period == TimePeriod.ALL) {
+            totalMissedCount
+        } else {
+            val (start, end) = periodRange(period)
+            repository.getCountByStatusBetween("missed", start, end)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val periodUnmarkedCount: StateFlow<Int> = _selectedPeriod.flatMapLatest { period ->
+        if (period == TimePeriod.ALL) {
+            totalUnmarkedCount
+        } else {
+            val (start, end) = periodRange(period)
+            repository.getCountByStatusBetween("unmarked", start, end)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val overallAdherencePercent: StateFlow<Float> = combine(
         repository.totalTakenCount,
         repository.totalMissedCount
@@ -75,13 +124,17 @@ class AdherenceViewModel(application: Application) : AndroidViewModel(applicatio
             val missedFlows = medications.map { med ->
                 repository.getMissedCountForMedication(med.id).map { count -> med.id to count }
             }
-            val allFlows = takenFlows + missedFlows
+            val unmarkedFlows = medications.map { med ->
+                repository.getUnmarkedCountForMedication(med.id).map { count -> med.id to count }
+            }
+            val allFlows = takenFlows + missedFlows + unmarkedFlows
             if (allFlows.isEmpty()) {
                 kotlinx.coroutines.flow.flowOf(emptyList())
             } else {
                 combine(allFlows) { results ->
                     val takenMap = mutableMapOf<Long, Int>()
                     val missedMap = mutableMapOf<Long, Int>()
+                    val unmarkedMap = mutableMapOf<Long, Int>()
                     for (i in medications.indices) {
                         takenMap[results[i].first] = results[i].second
                     }
@@ -89,11 +142,16 @@ class AdherenceViewModel(application: Application) : AndroidViewModel(applicatio
                         missedMap[results[medications.size + i].first] =
                             results[medications.size + i].second
                     }
+                    for (i in medications.indices) {
+                        unmarkedMap[results[medications.size * 2 + i].first] =
+                            results[medications.size * 2 + i].second
+                    }
                     medications.map { med ->
                         MedicationAdherenceStat(
                             medication = med,
                             takenCount = takenMap[med.id] ?: 0,
-                            missedCount = missedMap[med.id] ?: 0
+                            missedCount = missedMap[med.id] ?: 0,
+                            unmarkedCount = unmarkedMap[med.id] ?: 0
                         )
                     }.filter { it.total > 0 }
                 }
@@ -116,7 +174,9 @@ class AdherenceViewModel(application: Application) : AndroidViewModel(applicatio
         history.map { dose ->
             DoseHistoryEntry(
                 doseHistory = dose,
-                medicationName = medMap[dose.medicationId]?.name ?: "Unknown"
+                medicationName = dose.medicationId
+                    ?.let { medMap[it]?.name }
+                    ?: "Deleted medication"
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

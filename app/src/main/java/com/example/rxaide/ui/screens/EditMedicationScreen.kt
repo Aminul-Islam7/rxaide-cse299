@@ -90,8 +90,8 @@ fun EditMedicationScreen(
     // ── Form state ──────────────────────────────────────────────────────
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
-    var dosageUnit by remember { mutableStateOf("mg") }
-    var form by remember { mutableStateOf("Tablet") }
+    var dosageUnit by remember { mutableStateOf("") }
+    var form by remember { mutableStateOf("") }
     var frequency by remember { mutableStateOf("Once daily") }
     var mealRelation by remember { mutableStateOf("No relation") }
     var instructions by remember { mutableStateOf("") }
@@ -130,7 +130,7 @@ fun EditMedicationScreen(
     var frequencyExpanded by remember { mutableStateOf(false) }
 
     // Options
-    val formOptions = listOf("Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Nasal Spray", "Other")
+    val formOptions = listOf("", "Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Nasal Spray", "Other")
     val dosageUnitOptions = listOf("mg", "ml", "mcg", "g", "tablet", "capsule", "drop", "puff")
     val frequencyOptions = listOf("Once daily", "Twice daily", "Three times daily", "Four times daily", "Weekly", "As needed")
     val mealRelationOptions = listOf("Before meal", "After meal", "With meal", "No relation")
@@ -225,7 +225,12 @@ fun EditMedicationScreen(
             ) {
                 OutlinedTextField(
                     value = dosage,
-                    onValueChange = { dosage = it },
+                    onValueChange = {
+                        dosage = it
+                        if (it.isBlank()) {
+                            dosageUnit = ""
+                        }
+                    },
                     label = { Text("Dosage") },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -252,7 +257,7 @@ fun EditMedicationScreen(
                             DropdownMenuItem(
                                 text = { Text(option) },
                                 onClick = {
-                                    dosageUnit = option
+                                    dosageUnit = if (dosage.isBlank()) "" else option
                                     unitExpanded = false
                                 }
                             )
@@ -271,7 +276,7 @@ fun EditMedicationScreen(
                     FilterChip(
                         selected = form == option,
                         onClick = { form = option },
-                        label = { Text(option) },
+                        label = { Text(if (option.isBlank()) "Not set" else option) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MedicalBlue,
                             selectedLabelColor = Color.White
@@ -492,10 +497,12 @@ fun EditMedicationScreen(
             Button(
                 onClick = {
                     val med = medication ?: return@Button
+                    val normalizedDosage = dosage.trim()
+                    val normalizedUnit = if (normalizedDosage.isBlank()) "" else dosageUnit
                     val updatedMed = med.copy(
                         name = name.trim(),
-                        dosage = dosage.trim(),
-                        dosageUnit = dosageUnit,
+                        dosage = normalizedDosage,
+                        dosageUnit = normalizedUnit,
                         form = form,
                         frequency = frequency,
                         mealRelation = mealRelation,
@@ -520,7 +527,7 @@ fun EditMedicationScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MedicalBlue),
-                enabled = name.isNotBlank() && dosage.isNotBlank()
+                enabled = name.isNotBlank()
             ) {
                 Text("Save Changes", fontWeight = FontWeight.SemiBold)
             }

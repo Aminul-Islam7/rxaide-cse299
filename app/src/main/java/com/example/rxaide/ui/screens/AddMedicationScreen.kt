@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,9 +33,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.automirrored.filled.Notes
@@ -111,8 +112,8 @@ fun AddMedicationScreen(
     // ── Form state ──────────────────────────────────────────────────────
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
-    var dosageUnit by remember { mutableStateOf("mg") }
-    var form by remember { mutableStateOf("Tablet") }
+    var dosageUnit by remember { mutableStateOf("") }
+    var form by remember { mutableStateOf("") }
     var frequency by remember { mutableStateOf("Once daily") }
     var mealRelation by remember { mutableStateOf("No relation") }
     var instructions by remember { mutableStateOf("") }
@@ -155,7 +156,6 @@ fun AddMedicationScreen(
 
     // Validation
     var nameError by remember { mutableStateOf(false) }
-    var dosageError by remember { mutableStateOf(false) }
 
     // Dropdowns expanded state
     var dosageUnitExpanded by remember { mutableStateOf(false) }
@@ -165,7 +165,7 @@ fun AddMedicationScreen(
     val scope = rememberCoroutineScope()
 
     // ── Options ─────────────────────────────────────────────────────────
-    val formOptions = listOf("Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Nasal Spray", "Other")
+    val formOptions = listOf("", "Tablet", "Capsule", "Syrup", "Injection", "Drops", "Cream", "Inhaler", "Nasal Spray", "Other")
     val dosageUnitOptions = listOf("mg", "ml", "mcg", "g", "tablet", "capsule", "drop", "puff")
     val frequencyOptions = listOf("Once daily", "Twice daily", "Three times daily", "Four times daily", "Weekly", "As needed")
     val mealRelationOptions = listOf("Before meal", "After meal", "With meal", "No relation")
@@ -173,8 +173,10 @@ fun AddMedicationScreen(
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Text("Add Medication", fontWeight = FontWeight.Bold)
                 },
@@ -198,8 +200,6 @@ fun AddMedicationScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
             // ════════════════════════════════════════════════════════════
             // Prescription Image Card
             // ════════════════════════════════════════════════════════════
@@ -247,7 +247,7 @@ fun AddMedicationScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    Icons.Default.CameraAlt,
+                                    Icons.Default.DocumentScanner,
                                     contentDescription = "Camera",
                                     modifier = Modifier.size(40.dp),
                                     tint = MedicalBlue
@@ -315,12 +315,12 @@ fun AddMedicationScreen(
                     value = dosage,
                     onValueChange = {
                         dosage = it
-                        if (it.isNotBlank()) dosageError = false
+                        if (it.isBlank()) {
+                            dosageUnit = ""
+                        }
                     },
-                    label = { Text("Dosage *") },
+                    label = { Text("Dosage") },
                     placeholder = { Text("e.g., 500") },
-                    isError = dosageError,
-                    supportingText = if (dosageError) {{ Text("Required") }} else null,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(
@@ -346,6 +346,7 @@ fun AddMedicationScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Unit") },
+                        placeholder = { Text("Optional") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dosageUnitExpanded) },
                         modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                         shape = RoundedCornerShape(12.dp),
@@ -363,7 +364,7 @@ fun AddMedicationScreen(
                             DropdownMenuItem(
                                 text = { Text(unit) },
                                 onClick = {
-                                    dosageUnit = unit
+                                    dosageUnit = if (dosage.isBlank()) "" else unit
                                     dosageUnitExpanded = false
                                 }
                             )
@@ -391,7 +392,7 @@ fun AddMedicationScreen(
                     FilterChip(
                         selected = form == option,
                         onClick = { form = option },
-                        label = { Text(option) },
+                        label = { Text(if (option.isBlank()) "Not set" else option) },
                         leadingIcon = if (form == option) {
                             { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
@@ -468,7 +469,7 @@ fun AddMedicationScreen(
                     FilterChip(
                         selected = mealRelation == option,
                         onClick = { mealRelation = option },
-                        label = { Text(option) },
+                            label = { Text(if (option.isBlank()) "Not set" else option) },
                         leadingIcon = if (mealRelation == option) {
                             {
                                 Icon(
@@ -734,18 +735,20 @@ fun AddMedicationScreen(
                 onClick = {
                     // Validate
                     nameError = name.isBlank()
-                    dosageError = dosage.isBlank()
-                    if (nameError || dosageError) {
+                    if (nameError) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Please fill in all required fields")
                         }
                         return@Button
                     }
 
+                    val normalizedDosage = dosage.trim()
+                    val normalizedUnit = if (normalizedDosage.isBlank()) "" else dosageUnit
+
                     val medication = Medication(
                         name = name.trim(),
-                        dosage = dosage.trim(),
-                        dosageUnit = dosageUnit,
+                        dosage = normalizedDosage,
+                        dosageUnit = normalizedUnit,
                         form = form,
                         frequency = frequency,
                         mealRelation = mealRelation,

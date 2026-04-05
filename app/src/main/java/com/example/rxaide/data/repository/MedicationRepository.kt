@@ -79,6 +79,25 @@ class MedicationRepository(
     fun getMissedCountForMedication(medicationId: Long): Flow<Int> =
         doseHistoryDao.getMissedCountForMedication(medicationId)
 
+    fun getUnmarkedCountForMedication(medicationId: Long): Flow<Int> =
+        doseHistoryDao.getUnmarkedCountForMedication(medicationId)
+
+    fun getUnmarkedCountForDay(startOfDay: Long, endOfDay: Long): Flow<Int> =
+        doseHistoryDao.getUnmarkedCountForDay(startOfDay, endOfDay)
+
+    fun getCountByStatusBetween(status: String, start: Long, end: Long): Flow<Int> =
+        doseHistoryDao.getCountByStatusBetween(status, start, end)
+
+    fun getCountByStatus(status: String): Flow<Int> =
+        doseHistoryDao.getCountByStatus(status)
+
+    suspend fun getDoseCountForScheduleOnDay(
+        medicationId: Long,
+        scheduleId: Long,
+        dayStart: Long,
+        dayEnd: Long
+    ): Int = doseHistoryDao.getDoseCountForScheduleOnDay(medicationId, scheduleId, dayStart, dayEnd)
+
     // Chat-based schedule adjustment
     suspend fun findActiveMedicationByName(name: String): Medication? =
         medicationDao.findActiveMedicationByName(name)
@@ -89,3 +108,4 @@ class MedicationRepository(
     suspend fun getActiveMedicationsOnce(): List<Medication> =
         medicationDao.getActiveMedicationsOnce()
 }
+
