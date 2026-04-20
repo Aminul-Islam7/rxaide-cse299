@@ -1,0 +1,3675 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>RxAide — Project Demonstration | CSE299</title>
+	<meta name="description"
+		content="Technical demonstration of RxAide: An AI-Powered Medication Reminder & Management Assistant built with Kotlin, Jetpack Compose, Room, and Gemini API.">
+
+	<!-- Google Fonts -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+		rel="stylesheet">
+
+	<!-- Lucide Icons CDN -->
+	<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+	<!-- Highlight.js for Syntax Coloring -->
+	<link rel="stylesheet"
+		href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/kotlin.min.js"></script>
+
+	<style>
+		/* ═══════════════════════════════════════════════════════════════
+           DESIGN TOKENS & CSS VARIABLES
+           ═══════════════════════════════════════════════════════════════ */
+		:root {
+			/* Brand Blues */
+			--blue-primary: #4f65d6;
+			--blue-secondary: #5da4e0;
+			--blue-deep: #296374;
+			--blue-muted: #629fad;
+			--blue-dark: #1a2744;
+			--blue-darker: #0f1a2e;
+			--blue-darkest: #0a1120;
+
+			/* Accent & Neutrals */
+			--warm-dark: #504e4d;
+			--warm-light: #c9beb3;
+			--cream: #fff4db;
+			--cream-muted: #eae4df;
+			--white: #ffffff;
+			--text-primary: #e8ecf4;
+			--text-secondary: #94a3b8;
+			--text-muted: #64748b;
+
+			/* Functional */
+			--green: #10b981;
+			--orange: #f59e0b;
+			--red: #ef4444;
+
+			/* Gradients */
+			--gradient-hero: linear-gradient(135deg, #0a1120 0%, #1a2744 30%, #296374 70%, #4f65d6 100%);
+			--gradient-card: linear-gradient(135deg, rgba(79, 101, 214, 0.08) 0%, rgba(93, 164, 224, 0.05) 100%);
+			--gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(93, 164, 224, 0.15) 0%, transparent 70%);
+			--gradient-blue: linear-gradient(135deg, #4f65d6, #5da4e0);
+			--gradient-section: linear-gradient(180deg, #0f1a2e 0%, #1a2744 100%);
+
+			/* Borders & Shadows */
+			--border-subtle: rgba(93, 164, 224, 0.15);
+			--border-card: rgba(93, 164, 224, 0.2);
+			--shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+			--shadow-glow: 0 0 40px rgba(79, 101, 214, 0.15);
+
+			/* Sizing */
+			--max-width: 1200px;
+			--sidebar-width: 240px;
+			--section-padding: 100px 0;
+			--card-radius: 16px;
+			--small-radius: 10px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           BASE RESET & TYPOGRAPHY
+           ═══════════════════════════════════════════════════════════════ */
+		*,
+		*::before,
+		*::after {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		html {
+			scroll-behavior: smooth;
+			font-size: 16px;
+		}
+
+		body {
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+			background: var(--blue-darkest);
+			color: var(--text-primary);
+			line-height: 1.7;
+			overflow-x: hidden;
+		}
+
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			line-height: 1.3;
+			font-weight: 700;
+		}
+
+		a {
+			color: var(--blue-secondary);
+			text-decoration: none;
+			transition: color 0.2s;
+		}
+
+		a:hover {
+			color: var(--blue-primary);
+		}
+
+		img {
+			max-width: 100%;
+		}
+
+		.container {
+			max-width: var(--max-width);
+			margin: 0 auto;
+			padding: 0 32px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           SIDEBAR NAVIGATION
+           ═══════════════════════════════════════════════════════════════ */
+		.sidebar {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: var(--sidebar-width);
+			height: 100vh;
+			background: rgba(10, 17, 32, 0.97);
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			border-right: 1px solid var(--border-subtle);
+			z-index: 1000;
+			display: flex;
+			flex-direction: column;
+			padding: 24px 0;
+			overflow-y: auto;
+		}
+
+		.sidebar::-webkit-scrollbar {
+			width: 3px;
+		}
+
+		.sidebar::-webkit-scrollbar-thumb {
+			background: rgba(255, 255, 255, 0.08);
+			border-radius: 3px;
+		}
+
+		.sidebar-brand {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 0 20px 20px;
+			border-bottom: 1px solid var(--border-subtle);
+			margin-bottom: 16px;
+		}
+
+		.sidebar-brand img {
+			height: 30px;
+			width: auto;
+		}
+
+		.sidebar-brand span {
+			font-weight: 700;
+			font-size: 1.05rem;
+			color: var(--white);
+		}
+
+		.sidebar-section-label {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			color: var(--text-muted);
+			padding: 16px 20px 6px;
+		}
+
+		.sidebar-links {
+			list-style: none;
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			padding: 0 10px;
+		}
+
+		.sidebar-links a {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			color: var(--text-secondary);
+			font-size: 0.82rem;
+			font-weight: 500;
+			padding: 8px 12px;
+			border-radius: 8px;
+			transition: all 0.2s;
+		}
+
+		.sidebar-links a:hover {
+			color: var(--white);
+			background: rgba(93, 164, 224, 0.08);
+		}
+
+		.sidebar-links a.active {
+			color: var(--white);
+			background: rgba(79, 101, 214, 0.18);
+			border-left: 3px solid var(--blue-primary);
+		}
+
+		.sidebar-links a i {
+			opacity: 0.6;
+			flex-shrink: 0;
+		}
+
+		.sidebar-links a.active i {
+			opacity: 1;
+		}
+
+		.sidebar-bottom {
+			margin-top: auto;
+			padding: 16px 10px 0;
+			border-top: 1px solid var(--border-subtle);
+		}
+
+		.sidebar-github {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			color: var(--text-secondary) !important;
+			font-size: 0.8rem;
+			font-weight: 500;
+			padding: 10px 12px;
+			border: 1px solid var(--border-card);
+			border-radius: 8px;
+			transition: all 0.2s;
+		}
+
+		.sidebar-github:hover {
+			border-color: var(--blue-secondary);
+			color: var(--white) !important;
+			background: rgba(93, 164, 224, 0.08);
+		}
+
+		/* Push main content to the right of the sidebar */
+		.main-content {
+			margin-left: var(--sidebar-width);
+			display: flex;
+			flex-direction: column;
+		}
+
+		.main-content>section#features {
+			order: 1;
+		}
+
+		.main-content>section#project-structure {
+			order: 2;
+		}
+
+		.main-content>section#codebase {
+			order: 3;
+		}
+
+		.main-content>section#code-deep-dive {
+			order: 4;
+		}
+
+		.main-content>footer {
+			order: 5;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           HERO SECTION
+           ═══════════════════════════════════════════════════════════════ */
+		.hero {
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: var(--gradient-hero);
+			position: relative;
+			overflow: hidden;
+			padding-top: 0;
+		}
+
+		.hero::before {
+			content: '';
+			position: absolute;
+			top: -50%;
+			left: -50%;
+			width: 200%;
+			height: 200%;
+			background: radial-gradient(circle at 30% 70%, rgba(79, 101, 214, 0.08) 0%, transparent 50%),
+				radial-gradient(circle at 70% 30%, rgba(93, 164, 224, 0.06) 0%, transparent 50%);
+			animation: heroGlow 15s ease-in-out infinite alternate;
+		}
+
+		@keyframes heroGlow {
+			0% {
+				transform: translate(0, 0) scale(1);
+			}
+
+			100% {
+				transform: translate(-5%, 5%) scale(1.1);
+			}
+		}
+
+		.hero-content {
+			text-align: center;
+			position: relative;
+			z-index: 2;
+			max-width: 900px;
+			padding: 0 32px;
+		}
+
+		.hero-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			background: rgba(79, 101, 214, 0.15);
+			border: 1px solid rgba(79, 101, 214, 0.3);
+			color: var(--blue-secondary);
+			font-size: 0.8rem;
+			font-weight: 600;
+			letter-spacing: 0.05em;
+			padding: 6px 16px;
+			border-radius: 100px;
+			margin-bottom: 24px;
+			text-transform: uppercase;
+		}
+
+		.hero-logo {
+			width: 180px;
+			margin: 40px auto 16px;
+			display: block;
+			filter: drop-shadow(0 0 30px rgba(93, 164, 224, 0.3));
+		}
+
+		.hero-badge {
+			display: inline-flex;
+		}
+
+		.github-icon {
+			display: inline-block;
+			width: 16px;
+			height: 16px;
+			vertical-align: middle;
+			fill: currentColor;
+		}
+
+		.hero-repo-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			margin-top: 24px;
+			padding: 10px 22px;
+			background: rgba(255, 255, 255, 0.06);
+			border: 1px solid var(--border-card);
+			border-radius: 10px;
+			color: var(--text-secondary);
+			font-size: 0.88rem;
+			font-weight: 500;
+			transition: all 0.2s;
+		}
+
+		.hero-repo-btn:hover {
+			background: rgba(93, 164, 224, 0.1);
+			border-color: var(--blue-secondary);
+			color: var(--white);
+		}
+
+		.hero-subtitle {
+			font-size: 1.35rem;
+			color: var(--text-secondary);
+			max-width: 700px;
+			margin: 0 auto 20px;
+			font-weight: 400;
+		}
+
+		.hero-meta {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 16px;
+			margin-top: 32px;
+		}
+
+		.hero-meta-item {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid var(--border-subtle);
+			padding: 10px 18px;
+			border-radius: 12px;
+			font-size: 0.875rem;
+			color: var(--text-secondary);
+		}
+
+		.hero-meta-item strong {
+			color: var(--white);
+		}
+
+		.hero-team {
+			margin-top: 40px;
+			display: flex;
+			justify-content: center;
+			gap: 16px;
+			flex-wrap: nowrap;
+		}
+
+		.team-member {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			gap: 12px;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid var(--border-subtle);
+			padding: 24px 16px;
+			border-radius: 14px;
+			transition: all 0.3s;
+			flex: 1;
+		}
+
+		.team-member:hover {
+			background: rgba(79, 101, 214, 0.1);
+			border-color: var(--blue-primary);
+			transform: translateY(-2px);
+		}
+
+		.team-avatar {
+			width: 58px;
+			height: 58px;
+			border-radius: 50%;
+			background: var(--gradient-blue);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 700;
+			font-size: 1.1rem;
+			color: white;
+			flex-shrink: 0;
+			margin-bottom: 4px;
+		}
+
+		.team-info {
+			text-align: center;
+		}
+
+		.team-info .name {
+			font-weight: 600;
+			font-size: 1.05rem;
+			color: var(--white);
+			margin-bottom: 4px;
+		}
+
+		.team-info .id {
+			font-size: 0.85rem;
+			color: var(--blue-secondary);
+			font-weight: 600;
+			font-family: 'JetBrains Mono', monospace;
+		}
+
+		.team-info .email {
+			font-size: 0.75rem;
+			color: var(--text-muted);
+			margin-top: 4px;
+		}
+
+		.hero-faculty {
+			margin-top: 28px;
+			padding: 16px 28px;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid var(--border-subtle);
+			border-radius: 12px;
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.hero-faculty-label {
+			font-size: 0.8rem;
+			font-weight: 600;
+			color: var(--text-secondary);
+		}
+
+		.hero-faculty-name {
+			font-size: 1.1rem;
+			font-weight: 700;
+			color: var(--white);
+		}
+
+		.hero-faculty-sub {
+			font-size: 0.78rem;
+			color: var(--text-muted);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           SECTION STYLING
+           ═══════════════════════════════════════════════════════════════ */
+		section {
+			padding: var(--section-padding);
+			position: relative;
+		}
+
+		section:nth-child(even) {
+			background: var(--gradient-section);
+		}
+
+		section:nth-child(odd) {
+			background: var(--blue-darkest);
+		}
+
+		.section-glow {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 1px;
+			background: linear-gradient(90deg, transparent, var(--blue-secondary), transparent);
+			opacity: 0.3;
+		}
+
+		.section-header {
+			text-align: center;
+			margin-bottom: 56px;
+		}
+
+		.section-label {
+			font-size: 0.8rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+			color: var(--blue-secondary);
+			margin-bottom: 12px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+		}
+
+		.section-title {
+			font-size: 2.8rem;
+			font-weight: 800;
+			background: linear-gradient(135deg, var(--white) 0%, var(--blue-secondary) 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			margin-bottom: 16px;
+			line-height: 1.2;
+		}
+
+		.section-desc {
+			font-size: 1.15rem;
+			color: var(--text-secondary);
+			max-width: 800px;
+			margin: 0 auto;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           TECH STACK SECTION
+           ═══════════════════════════════════════════════════════════════ */
+		.tech-categories {
+			display: flex;
+			flex-direction: column;
+			gap: 48px;
+		}
+
+		.tech-category-title {
+			font-size: 1.1rem;
+			font-weight: 700;
+			color: var(--blue-secondary);
+			margin-bottom: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding-bottom: 10px;
+			border-bottom: 1px solid var(--border-subtle);
+		}
+
+		.tech-category-copy {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			min-width: 0;
+		}
+
+		.tech-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+			gap: 12px;
+		}
+
+		.tech-card {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border-subtle);
+			border-radius: 12px;
+			padding: 16px 18px;
+			transition: all 0.3s ease;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.tech-card::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 3px;
+			background: var(--gradient-blue);
+			opacity: 0;
+			transition: opacity 0.3s;
+		}
+
+		.tech-card:hover {
+			border-color: var(--blue-primary);
+			background: rgba(79, 101, 214, 0.06);
+			transform: translateY(-3px);
+			box-shadow: var(--shadow-glow);
+		}
+
+		.tech-card:hover::before {
+			opacity: 1;
+		}
+
+		.tech-card-header {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 4px;
+		}
+
+		.tech-icon {
+			width: 38px;
+			height: 38px;
+			border-radius: 10px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			font-size: 1.1rem;
+		}
+
+		.tech-icon.kotlin {
+			background: rgba(127, 82, 208, 0.15);
+			color: #a78bfa;
+		}
+
+		.tech-icon.compose {
+			background: rgba(79, 101, 214, 0.15);
+			color: #818cf8;
+		}
+
+		.tech-icon.room {
+			background: rgba(16, 185, 129, 0.15);
+			color: #6ee7b7;
+		}
+
+		.tech-icon.gemini {
+			background: rgba(93, 164, 224, 0.15);
+			color: #5da4e0;
+		}
+
+		.tech-icon.camera {
+			background: rgba(245, 158, 11, 0.15);
+			color: #fcd34d;
+		}
+
+		.tech-icon.work {
+			background: rgba(239, 68, 68, 0.15);
+			color: #fca5a5;
+		}
+
+		.tech-icon.nav {
+			background: rgba(79, 101, 214, 0.15);
+			color: #93c5fd;
+		}
+
+		.tech-icon.git {
+			background: rgba(239, 68, 68, 0.15);
+			color: #f87171;
+		}
+
+		.tech-icon.android {
+			background: rgba(16, 185, 129, 0.15);
+			color: #34d399;
+		}
+
+		.tech-icon.gradle {
+			background: rgba(93, 164, 224, 0.15);
+			color: #67e8f9;
+		}
+
+		.tech-icon.coil {
+			background: rgba(168, 85, 247, 0.15);
+			color: #c084fc;
+		}
+
+		.tech-icon.markdown {
+			background: rgba(93, 164, 224, 0.15);
+			color: #5da4e0;
+		}
+
+		.tech-icon.icons {
+			background: rgba(245, 158, 11, 0.15);
+			color: #fbbf24;
+		}
+
+		.tech-icon.coroutines {
+			background: rgba(79, 101, 214, 0.15);
+			color: #818cf8;
+		}
+
+		.tech-icon.ksp {
+			background: rgba(16, 185, 129, 0.15);
+			color: #6ee7b7;
+		}
+
+		.tech-card-name {
+			font-weight: 700;
+			font-size: 1.05rem;
+			color: var(--white);
+		}
+
+		.tech-card-role {
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			font-weight: 500;
+		}
+
+		.tech-card-desc {
+			font-size: 0.78rem;
+			color: var(--text-secondary);
+			line-height: 1.4;
+			margin-top: 2px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           ARCHITECTURE SECTION
+           ═══════════════════════════════════════════════════════════════ */
+		.arch-diagram {
+			background: rgba(255, 255, 255, 0.02);
+			border: 1px solid var(--border-card);
+			border-radius: var(--card-radius);
+			padding: 48px 32px;
+			text-align: center;
+			overflow-x: auto;
+		}
+
+		.arch-layers {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			max-width: 800px;
+			margin: 0 auto;
+		}
+
+		.arch-layer {
+			border-radius: 14px;
+			padding: 24px 28px;
+			text-align: left;
+			position: relative;
+		}
+
+		.arch-layer.view {
+			background: linear-gradient(135deg, rgba(79, 101, 214, 0.2) 0%, rgba(93, 164, 224, 0.12) 100%);
+			border: 1px solid rgba(79, 101, 214, 0.4);
+		}
+
+		.arch-layer.viewmodel {
+			background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+			border: 1px solid rgba(16, 185, 129, 0.35);
+		}
+
+		.arch-layer.model {
+			background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+			border: 1px solid rgba(245, 158, 11, 0.3);
+		}
+
+		.arch-layer-label {
+			font-size: 0.7rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			margin-bottom: 8px;
+			opacity: 0.7;
+		}
+
+		.arch-layer.view .arch-layer-label {
+			color: #818cf8;
+		}
+
+		.arch-layer.viewmodel .arch-layer-label {
+			color: #6ee7b7;
+		}
+
+		.arch-layer.model .arch-layer-label {
+			color: #fcd34d;
+		}
+
+		.arch-layer-title {
+			font-size: 1.1rem;
+			font-weight: 700;
+			margin-bottom: 8px;
+			color: var(--white);
+		}
+
+		.arch-layer-header {
+			position: relative;
+			padding-right: 40px;
+		}
+
+		.arch-layer-items {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.arch-chip {
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			padding: 5px 12px;
+			border-radius: 8px;
+			font-size: 0.8rem;
+			font-family: 'JetBrains Mono', monospace;
+			color: var(--text-secondary);
+		}
+
+		.arch-arrow {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 10px;
+			color: var(--text-muted);
+			font-size: 0.75rem;
+			font-weight: 600;
+			letter-spacing: 0.05em;
+		}
+
+		.arch-arrow svg {
+			opacity: 0.5;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           PIPELINE / WORKFLOW SECTION
+           ═══════════════════════════════════════════════════════════════ */
+		.pipeline {
+			display: flex;
+			align-items: stretch;
+			gap: 0;
+			overflow-x: auto;
+			padding: 20px 0;
+		}
+
+		.pipeline-step {
+			flex: 1;
+			min-width: 180px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			text-align: center;
+			position: relative;
+			padding: 0 12px;
+		}
+
+		.pipeline-step:not(:last-child)::after {
+			content: '';
+			position: absolute;
+			top: 30px;
+			right: -4px;
+			width: 24px;
+			height: 2px;
+			background: var(--gradient-blue);
+			z-index: 2;
+		}
+
+		.pipeline-num {
+			width: 56px;
+			height: 56px;
+			border-radius: 50%;
+			background: var(--gradient-blue);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 800;
+			font-size: 1.2rem;
+			color: white;
+			margin-bottom: 16px;
+			box-shadow: 0 0 24px rgba(79, 101, 214, 0.3);
+		}
+
+		.pipeline-title {
+			font-weight: 700;
+			font-size: 0.95rem;
+			color: var(--white);
+			margin-bottom: 6px;
+		}
+
+		.pipeline-desc {
+			font-size: 0.8rem;
+			color: var(--text-secondary);
+			line-height: 1.5;
+		}
+
+		.pipeline-tech {
+			margin-top: 8px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.7rem;
+			color: var(--blue-secondary);
+			background: rgba(93, 164, 224, 0.1);
+			padding: 3px 10px;
+			border-radius: 6px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           DATABASE SCHEMA SECTION
+           ═══════════════════════════════════════════════════════════════ */
+		.db-grid {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 16px;
+		}
+
+		.db-table {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border-card);
+			border-radius: var(--card-radius);
+			overflow: hidden;
+			transition: transform 0.3s, box-shadow 0.3s;
+		}
+
+		.db-table:hover {
+			transform: translateY(-3px);
+			box-shadow: var(--shadow-glow);
+		}
+
+		.db-table-header {
+			background: linear-gradient(135deg, rgba(79, 101, 214, 0.2), rgba(93, 164, 224, 0.1));
+			padding: 16px 20px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			border-bottom: 1px solid var(--border-subtle);
+			position: relative;
+			padding-right: 48px;
+		}
+
+		.db-table-name {
+			font-family: 'JetBrains Mono', monospace;
+			font-weight: 700;
+			font-size: 0.95rem;
+			color: var(--white);
+		}
+
+		.db-table-badge {
+			font-size: 0.65rem;
+			font-weight: 600;
+			background: rgba(93, 164, 224, 0.2);
+			color: var(--blue-secondary);
+			padding: 2px 8px;
+			border-radius: 6px;
+		}
+
+		.db-fields {
+			padding: 12px 0;
+		}
+
+		.db-field {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 20px;
+			font-size: 0.82rem;
+		}
+
+		.db-field:hover {
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.db-field-name {
+			font-family: 'JetBrains Mono', monospace;
+			color: var(--text-primary);
+			min-width: 120px;
+		}
+
+		.db-field-type {
+			font-family: 'JetBrains Mono', monospace;
+			color: var(--text-muted);
+			font-size: 0.75rem;
+			margin-left: auto;
+			text-align: right;
+		}
+
+		.db-table-footer {
+			padding: 10px 20px;
+			border-top: 1px solid var(--border-subtle);
+			background: rgba(255, 255, 255, 0.01);
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+		}
+
+		.db-pk {
+			font-size: 0.6rem;
+			font-weight: 700;
+			background: rgba(245, 158, 11, 0.2);
+			color: #fcd34d;
+			padding: 1px 6px;
+			border-radius: 4px;
+		}
+
+		.db-fk {
+			font-size: 0.6rem;
+			font-weight: 700;
+			background: rgba(79, 101, 214, 0.2);
+			color: #93c5fd;
+			padding: 1px 6px;
+			border-radius: 4px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           PROJECT STRUCTURE / CODEBASE
+           ═══════════════════════════════════════════════════════════════ */
+		.structure-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+			gap: 20px;
+		}
+
+		.structure-card {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--card-radius);
+			padding: 28px;
+			transition: all 0.3s;
+			position: relative;
+			padding-right: 56px;
+		}
+
+		.structure-card:hover {
+			border-color: var(--blue-primary);
+			background: rgba(79, 101, 214, 0.06);
+		}
+
+		.structure-card-icon {
+			width: 48px;
+			height: 48px;
+			border-radius: 12px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 16px;
+			font-size: 1.3rem;
+		}
+
+		.structure-card-icon.blue {
+			background: rgba(79, 101, 214, 0.15);
+			color: #818cf8;
+		}
+
+		.structure-card-icon.green {
+			background: rgba(16, 185, 129, 0.15);
+			color: #6ee7b7;
+		}
+
+		.structure-card-icon.orange {
+			background: rgba(245, 158, 11, 0.15);
+			color: #fcd34d;
+		}
+
+		.structure-card-icon.red {
+			background: rgba(239, 68, 68, 0.15);
+			color: #fca5a5;
+		}
+
+		.structure-card-icon.purple {
+			background: rgba(168, 85, 247, 0.15);
+			color: #c084fc;
+		}
+
+		.structure-card-icon.cyan {
+			background: rgba(6, 182, 212, 0.15);
+			color: #67e8f9;
+		}
+
+		.structure-card h4 {
+			font-size: 1.05rem;
+			margin-bottom: 6px;
+			color: var(--white);
+		}
+
+		.structure-card p {
+			font-size: 0.85rem;
+			color: var(--text-secondary);
+			margin-bottom: 12px;
+		}
+
+		.file-list {
+			list-style: none;
+		}
+
+		.file-list li {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 4px 0;
+			font-size: 0.8rem;
+		}
+
+		.file-list li a {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.78rem;
+			color: var(--blue-secondary);
+		}
+
+		.file-list li a:hover {
+			text-decoration: underline;
+		}
+
+		.file-list .file-desc {
+			color: var(--text-muted);
+			font-size: 0.75rem;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           CODE BLOCKS
+           ═══════════════════════════════════════════════════════════════ */
+		.code-section {
+			margin-bottom: 40px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.code-block-wrapper {
+			background: rgba(15, 23, 42, 0.8);
+			border: 1px solid var(--border-card);
+			border-radius: var(--card-radius);
+			overflow: hidden;
+			margin-top: 16px;
+			width: min(100%, 980px);
+		}
+
+		.code-block-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			background: rgba(255, 255, 255, 0.04);
+			border-bottom: 1px solid var(--border-subtle);
+			padding: 10px 18px;
+			position: relative;
+			padding-right: 48px;
+		}
+
+		.code-block-file {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.code-block-file a {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8rem;
+			color: var(--blue-secondary);
+		}
+
+		.code-block-lang {
+			font-size: 0.7rem;
+			font-weight: 600;
+			color: var(--text-muted);
+			background: rgba(255, 255, 255, 0.06);
+			padding: 3px 10px;
+			border-radius: 6px;
+			text-transform: uppercase;
+		}
+
+		.code-block-body {
+			padding: 20px;
+			overflow-x: auto;
+			max-height: 500px;
+			overflow-y: auto;
+		}
+
+		.code-block-body pre {
+			margin: 0;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.82rem;
+			line-height: 1.65;
+			color: #e2e8f0;
+			white-space: pre;
+			tab-size: 4;
+		}
+
+		/* Prevent highlight.js from overriding background and padding */
+		.code-block-body pre code.hljs {
+			display: block;
+			padding: 0;
+			background: transparent;
+		}
+
+		.code-block-body::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+
+		.code-block-body::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.code-block-body::-webkit-scrollbar-thumb {
+			background: rgba(255, 255, 255, 0.1);
+			border-radius: 3px;
+		}
+
+		.code-annotation {
+			font-size: 0.88rem;
+			color: var(--text-secondary);
+			margin-bottom: 8px;
+			line-height: 1.6;
+			width: min(100%, 980px);
+		}
+
+		.code-annotation strong {
+			color: var(--white);
+		}
+
+		/* Syntax highlighting basics */
+		.kw {
+			color: #c084fc;
+		}
+
+		/* keywords */
+		.fn {
+			color: #93c5fd;
+		}
+
+		/* function names */
+		.st {
+			color: #6ee7b7;
+		}
+
+		/* strings */
+		.cm {
+			color: #64748b;
+			font-style: italic;
+		}
+
+		/* comments */
+		.an {
+			color: #fbbf24;
+		}
+
+		/* annotations */
+		.ty {
+			color: #67e8f9;
+		}
+
+		/* types */
+		.nu {
+			color: #fca5a5;
+		}
+
+		/* numbers */
+		.op {
+			color: #94a3b8;
+		}
+
+		/* operators */
+
+		/* ═══════════════════════════════════════════════════════════════
+           FEATURES GRID
+           ═══════════════════════════════════════════════════════════════ */
+		.features-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+			gap: 20px;
+		}
+
+		.feature-card {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--card-radius);
+			padding: 32px;
+			transition: all 0.3s;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.feature-card::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 3px;
+			background: var(--gradient-blue);
+			opacity: 0;
+			transition: opacity 0.3s;
+		}
+
+		.feature-card:hover {
+			background: rgba(79, 101, 214, 0.06);
+			border-color: var(--blue-primary);
+			transform: translateY(-3px);
+		}
+
+		.feature-card:hover::after {
+			opacity: 1;
+		}
+
+		.feature-icon {
+			font-size: 2rem;
+			margin-bottom: 16px;
+		}
+
+		.feature-card h4 {
+			font-size: 1.1rem;
+			color: var(--white);
+			margin-bottom: 8px;
+		}
+
+		.feature-card p {
+			font-size: 0.88rem;
+			color: var(--text-secondary);
+			line-height: 1.6;
+		}
+
+		.feature-tech-tag {
+			display: inline-block;
+			margin-top: 12px;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.72rem;
+			color: var(--blue-secondary);
+			background: rgba(93, 164, 224, 0.1);
+			padding: 3px 10px;
+			border-radius: 6px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           NAVIGATION MAP
+           ═══════════════════════════════════════════════════════════════ */
+		.nav-map {
+			background: rgba(255, 255, 255, 0.02);
+			border: 1px solid var(--border-card);
+			border-radius: var(--card-radius);
+			padding: 40px;
+			overflow-x: auto;
+		}
+
+		.nav-map-grid {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			justify-content: center;
+		}
+
+		.nav-screen {
+			background: rgba(79, 101, 214, 0.12);
+			border: 1px solid rgba(79, 101, 214, 0.3);
+			border-radius: 12px;
+			padding: 16px 24px;
+			text-align: center;
+			min-width: 140px;
+			transition: all 0.3s;
+		}
+
+		.nav-screen:hover {
+			background: rgba(79, 101, 214, 0.2);
+			transform: translateY(-2px);
+			box-shadow: 0 4px 16px rgba(79, 101, 214, 0.2);
+		}
+
+		.nav-screen.primary {
+			background: var(--gradient-blue);
+			border-color: transparent;
+		}
+
+		.nav-screen.primary .nav-screen-name {
+			color: white;
+		}
+
+		.nav-screen-icon {
+			font-size: 1.4rem;
+			margin-bottom: 8px;
+		}
+
+		.nav-screen-name {
+			font-weight: 600;
+			font-size: 0.85rem;
+			color: var(--white);
+		}
+
+		.nav-screen-route {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.68rem;
+			color: var(--text-muted);
+			margin-top: 4px;
+		}
+
+		.nav-note {
+			text-align: center;
+			margin-top: 24px;
+			color: var(--text-muted);
+			font-size: 0.82rem;
+		}
+
+		.nav-note strong {
+			color: var(--text-secondary);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           STATS ROW
+           ═══════════════════════════════════════════════════════════════ */
+		.stats-row {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+			gap: 16px;
+			margin-bottom: 48px;
+		}
+
+		.stat-card {
+			text-align: center;
+			padding: 28px 20px;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--card-radius);
+			transition: all 0.3s;
+		}
+
+		.stat-card:hover {
+			background: rgba(79, 101, 214, 0.06);
+			border-color: var(--blue-primary);
+		}
+
+		.stat-value {
+			font-size: 2.2rem;
+			font-weight: 800;
+			background: var(--gradient-blue);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+
+		.stat-label {
+			font-size: 0.82rem;
+			color: var(--text-muted);
+			margin-top: 4px;
+			font-weight: 500;
+		}
+
+		.stat-card-footer {
+			margin-top: 14px;
+			display: flex;
+			justify-content: center;
+		}
+
+		.info-button {
+			width: 22px;
+			height: 22px;
+			border-radius: 999px;
+			border: 1px solid rgba(93, 164, 224, 0.28);
+			background: rgba(255, 255, 255, 0.04);
+			color: var(--text-secondary);
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.72rem;
+			font-weight: 800;
+			font-style: normal;
+			line-height: 1;
+			cursor: pointer;
+			transition: transform 0.2s, border-color 0.2s, background 0.2s, color 0.2s;
+			flex-shrink: 0;
+		}
+
+		.info-button:hover {
+			transform: translateY(-1px);
+			border-color: var(--blue-secondary);
+			background: rgba(93, 164, 224, 0.12);
+			color: var(--white);
+		}
+
+		.info-button:focus-visible {
+			outline: 2px solid rgba(93, 164, 224, 0.9);
+			outline-offset: 2px;
+		}
+
+		.info-button.corner {
+			position: absolute;
+			top: 12px;
+			right: 12px;
+		}
+
+		.info-button.corner.centered {
+			top: 50%;
+			transform: translateY(-50%);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           DIFF TABLE / COMPETITIVE
+           ═══════════════════════════════════════════════════════════════ */
+		.comp-table-wrapper {
+			overflow-x: auto;
+			border-radius: var(--card-radius);
+			border: 1px solid var(--border-card);
+		}
+
+		.comp-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.88rem;
+		}
+
+		.comp-table th {
+			background: rgba(79, 101, 214, 0.12);
+			padding: 14px 18px;
+			text-align: center;
+			font-weight: 600;
+			color: var(--white);
+			border-bottom: 1px solid var(--border-subtle);
+			white-space: nowrap;
+		}
+
+		.comp-table th:first-child {
+			text-align: left;
+		}
+
+		.comp-table th:last-child {
+			background: rgba(79, 101, 214, 0.25);
+			color: var(--blue-secondary);
+		}
+
+		.comp-table td {
+			padding: 12px 18px;
+			text-align: center;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+			color: var(--text-secondary);
+		}
+
+		.comp-table td:first-child {
+			text-align: left;
+			color: var(--text-primary);
+			font-weight: 500;
+		}
+
+		.comp-table td:last-child {
+			background: rgba(79, 101, 214, 0.06);
+			font-weight: 600;
+		}
+
+		.comp-table tr:hover td {
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.comp-table tr:hover td:last-child {
+			background: rgba(79, 101, 214, 0.1);
+		}
+
+		.check {
+			color: var(--green);
+			font-weight: 700;
+		}
+
+		.cross {
+			color: var(--red);
+			opacity: 0.5;
+		}
+
+		.info-modal-overlay {
+			position: fixed;
+			inset: 0;
+			z-index: 3000;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+			background: rgba(4, 9, 19, 0.72);
+			backdrop-filter: blur(12px);
+			-webkit-backdrop-filter: blur(12px);
+		}
+
+		.info-modal-overlay.open {
+			display: flex;
+		}
+
+		.info-modal {
+			position: relative;
+			width: min(100%, 560px);
+			border-radius: 24px;
+			border: 1px solid rgba(93, 164, 224, 0.22);
+			background: linear-gradient(180deg, rgba(15, 26, 46, 0.98), rgba(10, 17, 32, 0.98));
+			box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+			overflow: hidden;
+		}
+
+		.info-modal::before {
+			content: '';
+			display: block;
+			height: 2px;
+			background: linear-gradient(90deg, transparent, var(--blue-secondary), transparent);
+			opacity: 0.8;
+		}
+
+		.info-modal-header {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 16px;
+			padding: 22px 22px 0;
+		}
+
+		.info-modal-title {
+			font-size: 1.15rem;
+			font-weight: 800;
+			color: var(--white);
+		}
+
+		.info-modal-subtitle {
+			margin-top: 6px;
+			font-size: 0.84rem;
+			color: var(--text-muted);
+		}
+
+		.info-modal-close {
+			width: 30px;
+			height: 30px;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			background: rgba(255, 255, 255, 0.05);
+			color: var(--text-secondary);
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.info-modal-close:hover {
+			border-color: rgba(93, 164, 224, 0.5);
+			color: var(--white);
+			background: rgba(93, 164, 224, 0.1);
+		}
+
+		.info-modal-body {
+			padding: 18px 22px 24px;
+			color: var(--text-secondary);
+			font-size: 0.95rem;
+			line-height: 1.7;
+		}
+
+		.info-modal-placeholder {
+			padding: 16px 18px;
+			border-radius: 16px;
+			border: 1px dashed rgba(93, 164, 224, 0.2);
+			background: rgba(255, 255, 255, 0.03);
+			color: var(--text-muted);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════════════════════════ */
+		footer {
+			padding: 48px 32px;
+			text-align: center;
+			background: var(--blue-darker);
+			border-top: 1px solid var(--border-subtle);
+		}
+
+		footer img {
+			height: 48px;
+			margin-bottom: 16px;
+			opacity: 0.7;
+		}
+
+		footer p {
+			color: var(--text-muted);
+			font-size: 0.85rem;
+		}
+
+		footer .footer-links {
+			margin-top: 12px;
+			display: flex;
+			justify-content: center;
+			gap: 20px;
+		}
+
+		footer .footer-links a {
+			color: var(--text-secondary);
+			font-size: 0.82rem;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           SCROLL ANIMATIONS
+           ═══════════════════════════════════════════════════════════════ */
+		.fade-in {
+			opacity: 0;
+			transform: translateY(30px);
+			transition: opacity 0.7s ease, transform 0.7s ease;
+		}
+
+		.fade-in.visible {
+			opacity: 1;
+			transform: translateY(0);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════════════════════════ */
+		@media (max-width: 1024px) {
+			.sidebar {
+				display: none;
+			}
+
+			.main-content {
+				margin-left: 0;
+			}
+		}
+
+		@media (max-width: 768px) {
+			:root {
+				--section-padding: 60px 0;
+			}
+
+			.section-title {
+				font-size: 1.8rem;
+			}
+
+			.hero-logo {
+				width: 200px;
+			}
+
+			.hero-subtitle {
+				font-size: 1.1rem;
+			}
+
+			.hero-team {
+				flex-direction: column;
+				align-items: center;
+			}
+
+			.pipeline {
+				flex-direction: column;
+				align-items: center;
+			}
+
+			.pipeline-step:not(:last-child)::after {
+				display: none;
+			}
+
+			.stat-value {
+				font-size: 1.6rem;
+			}
+
+			.tech-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
+</head>
+
+<body>
+
+	<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR NAVIGATION
+     ═══════════════════════════════════════════════════════════════ -->
+	<aside class="sidebar" id="sidebar">
+		<div class="sidebar-brand">
+			<img src="https://raw.githubusercontent.com/Aminul-Islam7/rxaide-cse299/refs/heads/main/app/src/main/res/drawable/rxaide_app_icon.png"
+				alt="RxAide">
+			<span>RxAide</span>
+		</div>
+
+		<div class="sidebar-section-label">Project</div>
+		<ul class="sidebar-links">
+			<li><a href="#overview"><i data-lucide="home" style="width:15px;height:15px;"></i> Overview</a></li>
+		</ul>
+
+		<div class="sidebar-section-label">Technical</div>
+		<ul class="sidebar-links">
+			<li><a href="#tech-stack"><i data-lucide="layers" style="width:15px;height:15px;"></i> Tech Stack</a></li>
+			<li><a href="#architecture"><i data-lucide="box" style="width:15px;height:15px;"></i> Architecture</a></li>
+			<li><a href="#pipeline"><i data-lucide="workflow" style="width:15px;height:15px;"></i> Pipeline</a></li>
+			<li><a href="#database"><i data-lucide="database" style="width:15px;height:15px;"></i> Database</a></li>
+		</ul>
+
+		<div class="sidebar-section-label">Implementation</div>
+		<ul class="sidebar-links">
+			<li><a href="#features"><i data-lucide="sparkles" style="width:15px;height:15px;"></i> Features</a></li>
+			<li><a href="#project-structure"><i data-lucide="folder-open" style="width:15px;height:15px;"></i> Source
+					Tree</a></li>
+			<li><a href="#codebase"><i data-lucide="folder-tree" style="width:15px;height:15px;"></i> Codebase</a></li>
+			<li><a href="#code-deep-dive"><i data-lucide="code-2" style="width:15px;height:15px;"></i> Code Deep
+					Dive</a></li>
+		</ul>
+
+		<div class="sidebar-bottom">
+			<a href="https://github.com/Aminul-Islam7/rxaide-cse299" target="_blank" class="sidebar-github">
+				<svg class="github-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+					<path fill-rule="evenodd" clip-rule="evenodd"
+						d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z"
+						transform="scale(64)" fill="currentColor" />
+				</svg> View Repository
+			</a>
+		</div>
+	</aside>
+
+	<div class="main-content">
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     HERO SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+		<section class="hero" id="overview">
+			<div class="hero-content">
+				<img src="https://raw.githubusercontent.com/Aminul-Islam7/rxaide-cse299/refs/heads/main/app/src/main/res/drawable/rxaide_logo_with_name.png"
+					alt="RxAide Logo" class="hero-logo">
+				<div class="hero-badge">
+					<i data-lucide="graduation-cap" style="width:14px;height:14px;"></i>
+					CSE299 — Section 4 · Group 2 · Spring 2026
+				</div>
+				<p class="hero-subtitle">
+					An AI-powered Android application that extracts medication data from prescription images using
+					Gemini multimodal AI, generates personalized reminder schedules, tracks dose adherence, and provides
+					a conversational assistant — all within a single, unified pipeline.
+				</p>
+
+				<div class="hero-team">
+					<div class="team-member">
+						<div class="team-avatar">SR</div>
+						<div class="team-info">
+							<div class="name">Md Shahriar Rakib Rabbi</div>
+							<div class="id">2321937642</div>
+							<div class="email">shahriar.rabbi.232@northsouth.edu</div>
+						</div>
+					</div>
+					<div class="team-member">
+						<div class="team-avatar">AI</div>
+						<div class="team-info">
+							<div class="name">Aminul Islam</div>
+							<div class="id">2321169042</div>
+							<div class="email">aminul.islam.232@northsouth.edu</div>
+						</div>
+					</div>
+					<div class="team-member">
+						<div class="team-avatar">TM</div>
+						<div class="team-info">
+							<div class="name">Tirtho Mojumdar</div>
+							<div class="id">2312536042</div>
+							<div class="email">tirtho.mojumdar.2312536@northsouth.edu</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="hero-faculty">
+					<i data-lucide="graduation-cap" style="width:20px;height:20px;color:var(--blue-secondary)"></i>
+					<div>
+						<div class="hero-faculty-label">Faculty Advisor</div>
+						<div class="hero-faculty-name">Dr. Mohammad Shifat-E-Rabbi (MSRb)</div>
+						<div class="hero-faculty-sub">North South University</div>
+					</div>
+				</div>
+
+				<div style="margin-top: 32px;">
+					<a href="https://github.com/Aminul-Islam7/rxaide-cse299" target="_blank" class="hero-repo-btn"
+						style="margin-top: 0;">
+						<svg class="github-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+							<path fill-rule="evenodd" clip-rule="evenodd"
+								d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z"
+								transform="scale(64)" fill="currentColor" />
+						</svg>
+						View Repository
+					</a>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     PROJECT STATS
+     ═══════════════════════════════════════════════════════════════ -->
+		<section>
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="stats-row fade-in">
+					<div class="stat-card">
+						<div class="stat-value">40</div>
+						<div class="stat-label">Source Files</div>
+						<div class="stat-card-footer">
+							<button type="button" class="info-button" data-modal-title="Source Files"
+								data-modal-note="Placeholder details for the source-file count."><span
+									aria-hidden="true">i</span></button>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-value">10</div>
+						<div class="stat-label">Screens</div>
+						<div class="stat-card-footer">
+							<button type="button" class="info-button" data-modal-title="Screens"
+								data-modal-note="Placeholder details for the screen count."><span
+									aria-hidden="true">i</span></button>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-value">4</div>
+						<div class="stat-label">DB Entities</div>
+						<div class="stat-card-footer">
+							<button type="button" class="info-button" data-modal-title="DB Entities"
+								data-modal-note="Placeholder details for the database entities."><span
+									aria-hidden="true">i</span></button>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-value">3</div>
+						<div class="stat-label">ViewModels</div>
+						<div class="stat-card-footer">
+							<button type="button" class="info-button" data-modal-title="ViewModels"
+								data-modal-note="Placeholder details for the ViewModel count."><span
+									aria-hidden="true">i</span></button>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-value">7</div>
+						<div class="stat-label">Events & Background</div>
+						<div class="stat-card-footer">
+							<button type="button" class="info-button" data-modal-title="Events & Background"
+								data-modal-note="Placeholder details for the background work and event count."><span
+									aria-hidden="true">i</span></button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     TECH STACK SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="tech-stack">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="layers" style="width:16px;height:16px;"></i> Technical
+						Foundation</div>
+					<h2 class="section-title">Technology Stack</h2>
+					<p class="section-desc">Dependencies and libraries used to build RxAide, selected for robust
+						architecture, performance, and modern Android development standards.</p>
+				</div>
+
+				<div class="tech-categories">
+					<!-- Core Platform -->
+					<div class="fade-in">
+						<div class="tech-category-title">
+							<span class="tech-category-copy"><i data-lucide="cpu" style="width:18px;height:18px;"></i>
+								Core Platform & Language</span>
+							<button type="button" class="info-button" data-modal-title="Core Platform & Language"
+								data-modal-note="Placeholder details for the core platform category."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="tech-grid">
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon kotlin"><i data-lucide="file-code-2"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Kotlin</div>
+										<div class="tech-card-role">Primary Language</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Null-safe with coroutines for all async operations</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon android"><i data-lucide="smartphone"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Android SDK 36</div>
+										<div class="tech-card-role">Target Platform</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">minSdk 26 (Android 8.0+) for notification channels</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon gradle"><i data-lucide="settings"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Gradle (Kotlin DSL)</div>
+										<div class="tech-card-role">Build System</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Version catalog + KSP for Room code generation</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- UI Framework -->
+					<div class="fade-in">
+						<div class="tech-category-title">
+							<span class="tech-category-copy"><i data-lucide="paintbrush"
+									style="width:18px;height:18px;"></i> UI Framework & Design</span>
+							<button type="button" class="info-button" data-modal-title="UI Framework & Design"
+								data-modal-note="Placeholder details for the UI framework category."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="tech-grid">
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon compose"><i data-lucide="layout-template"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Jetpack Compose</div>
+										<div class="tech-card-role">Declarative UI</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">100% Compose, zero XML layouts</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon compose"><i data-lucide="palette"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Material 3</div>
+										<div class="tech-card-role">Design System</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Custom dark/light themes, dynamic theming</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon icons"><i data-lucide="sparkles"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Material Icons Extended</div>
+										<div class="tech-card-role">Icon Library</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Full icon set + 4 custom medication SVGs</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon coil"><i data-lucide="image"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Coil Compose</div>
+										<div class="tech-card-role">Image Loading</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Async image loading for prescription photos in chat</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon markdown"><i data-lucide="file-text"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Compose Markdown</div>
+										<div class="tech-card-role">Markdown Renderer</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Renders AI chat responses as rich markdown</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Data & AI -->
+					<div class="fade-in">
+						<div class="tech-category-title">
+							<span class="tech-category-copy"><i data-lucide="brain" style="width:18px;height:18px;"></i>
+								Data Layer & AI</span>
+							<button type="button" class="info-button" data-modal-title="Data Layer & AI"
+								data-modal-note="Placeholder details for the data and AI category."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="tech-grid">
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon room"><i data-lucide="database"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Room Database</div>
+										<div class="tech-card-role">Local SQLite Persistence</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">4 entities, 4 DAOs, reactive Flow queries</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon gemini"><i data-lucide="brain-circuit"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Gemini 2.5 Flash</div>
+										<div class="tech-card-role">AI Engine (OCR + Chat)</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Multimodal AI with Google Search grounding</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon ksp"><i data-lucide="zap" style="width:20px;height:20px;"></i>
+									</div>
+									<div>
+										<div class="tech-card-name">KSP</div>
+										<div class="tech-card-role">Kotlin Symbol Processing</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Compile-time code gen for Room DAOs</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon coroutines"><i data-lucide="refresh-cw"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Coroutines + StateFlow</div>
+										<div class="tech-card-role">Async & Reactive State</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Lifecycle-aware reactive UI state management</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Background & Notifications -->
+					<div class="fade-in">
+						<div class="tech-category-title">
+							<span class="tech-category-copy"><i data-lucide="bell" style="width:18px;height:18px;"></i>
+								Background Processing &
+								Notifications</span>
+							<button type="button" class="info-button"
+								data-modal-title="Background Processing & Notifications"
+								data-modal-note="Placeholder details for the background processing category."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="tech-grid">
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon work"><i data-lucide="clock"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">WorkManager</div>
+										<div class="tech-card-role">Background Scheduler</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">24h periodic tasks, survives reboots & doze</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon work"><i data-lucide="bell"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Notification Channels</div>
+										<div class="tech-card-role">System Notifications</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">HIGH priority with custom sounds and action buttons</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon work"><i data-lucide="repeat"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">BroadcastReceivers</div>
+										<div class="tech-card-role">System Events</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Boot reschedule + notification action handling</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- Camera & Navigation -->
+					<div class="fade-in">
+						<div class="tech-category-title">
+							<span class="tech-category-copy"><i data-lucide="navigation"
+									style="width:18px;height:18px;"></i> Camera, Navigation &
+								Tooling</span>
+							<button type="button" class="info-button" data-modal-title="Camera, Navigation & Tooling"
+								data-modal-note="Placeholder details for the camera/navigation/tooling category."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="tech-grid">
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon camera"><i data-lucide="camera"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">CameraX</div>
+										<div class="tech-card-role">Camera API</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Lifecycle-aware capture, preview, and gallery</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon nav"><i data-lucide="compass"
+											style="width:20px;height:20px;"></i></div>
+									<div>
+										<div class="tech-card-name">Navigation Compose</div>
+										<div class="tech-card-role">Screen Routing</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Sealed class routes with animated transitions</p>
+							</div>
+							<div class="tech-card">
+								<div class="tech-card-header">
+									<div class="tech-icon git"><svg viewBox="0 0 1024 1024"
+											style="width:20px;height:20px;" xmlns="http://www.w3.org/2000/svg">
+											<path fill-rule="evenodd" clip-rule="evenodd"
+												d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z"
+												transform="scale(64)" fill="currentColor" />
+										</svg></div>
+									<div>
+										<div class="tech-card-name">Git + GitHub</div>
+										<div class="tech-card-role">Version Control</div>
+									</div>
+								</div>
+								<p class="tech-card-desc">Branching, PRs, and issue tracking</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     ARCHITECTURE SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="architecture">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="box" style="width:16px;height:16px;"></i> System Design
+					</div>
+					<h2 class="section-title">Software Architecture</h2>
+					<p class="section-desc">The application follows the robust Model-View-ViewModel (MVVM) pattern with
+						Unidirectional Data Flow (UDF), ensuring separation of concerns and testability.</p>
+				</div>
+
+				<div class="arch-diagram fade-in">
+					<div class="arch-layers">
+						<!-- View Layer -->
+						<div class="arch-layer view">
+							<button type="button" class="info-button corner" data-modal-title="View Layer"
+								data-modal-note="Placeholder details for the view layer."><span
+									aria-hidden="true">i</span></button>
+							<div class="arch-layer-label">View Layer — Jetpack Compose</div>
+							<div class="arch-layer-title">Declarative Composable Screens</div>
+							<div class="arch-layer-items">
+								<span class="arch-chip">HomeScreen</span>
+								<span class="arch-chip">ChatScreen</span>
+								<span class="arch-chip">CameraScreen</span>
+								<span class="arch-chip">MedicationListScreen</span>
+								<span class="arch-chip">MedicationDetailScreen</span>
+								<span class="arch-chip">AddMedicationScreen</span>
+								<span class="arch-chip">EditMedicationScreen</span>
+								<span class="arch-chip">AdherenceScreen</span>
+								<span class="arch-chip">NotificationsScreen</span>
+								<span class="arch-chip">SettingsScreen</span>
+							</div>
+						</div>
+
+						<div class="arch-arrow">
+							<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M10 4v12M6 12l4 4 4-4" />
+							</svg>
+							StateFlow · Events · Callbacks
+							<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M10 16V4M6 8l4-4 4 4" />
+							</svg>
+						</div>
+
+						<!-- ViewModel Layer -->
+						<div class="arch-layer viewmodel">
+							<button type="button" class="info-button corner" data-modal-title="ViewModel Layer"
+								data-modal-note="Placeholder details for the ViewModel layer."><span
+									aria-hidden="true">i</span></button>
+							<div class="arch-layer-label">ViewModel Layer — Business Logic</div>
+							<div class="arch-layer-title">Lifecycle-Aware State Managers</div>
+							<div class="arch-layer-items">
+								<span class="arch-chip">MedicationViewModel</span>
+								<span class="arch-chip">ChatViewModel</span>
+								<span class="arch-chip">AdherenceViewModel</span>
+							</div>
+						</div>
+
+						<div class="arch-arrow">
+							<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M10 4v12M6 12l4 4 4-4" />
+							</svg>
+							Repository Pattern · Coroutines
+							<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M10 16V4M6 8l4-4 4 4" />
+							</svg>
+						</div>
+
+						<!-- Model Layer -->
+						<div class="arch-layer model">
+							<button type="button" class="info-button corner" data-modal-title="Model Layer"
+								data-modal-note="Placeholder details for the model layer."><span
+									aria-hidden="true">i</span></button>
+							<div class="arch-layer-label">Model Layer — Data & Services</div>
+							<div class="arch-layer-title">Persistence, Scheduling & AI</div>
+							<div class="arch-layer-items">
+								<span class="arch-chip">Room DB</span>
+								<span class="arch-chip">MedicationRepository</span>
+								<span class="arch-chip">ChatRepository</span>
+								<span class="arch-chip">GeminiService</span>
+								<span class="arch-chip">ReminderScheduler</span>
+								<span class="arch-chip">WorkManager</span>
+								<span class="arch-chip">BroadcastReceivers</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- End-to-End Pipeline -->
+				<div style="margin-top: 80px;" id="pipeline">
+					<div class="section-header fade-in">
+						<div class="section-label"><i data-lucide="workflow" style="width:16px;height:16px;"></i>
+							End-to-End Pipeline</div>
+						<h2 class="section-title">From Prescription Photo to Adherence Tracking</h2>
+						<p class="section-desc">The core innovation — a seamless, 5-stage automated pipeline that no
+							competitor offers.</p>
+					</div>
+
+					<div class="pipeline fade-in">
+						<div class="pipeline-step">
+							<div class="pipeline-num">1</div>
+							<div class="pipeline-title">📷 Capture</div>
+							<div class="pipeline-desc">User photographs or uploads a prescription image</div>
+							<div class="pipeline-tech">CameraX</div>
+						</div>
+						<div class="pipeline-step">
+							<div class="pipeline-num">2</div>
+							<div class="pipeline-title">🤖 Extract</div>
+							<div class="pipeline-desc">Gemini AI reads the Rx: 3-pass extraction with search grounding
+							</div>
+							<div class="pipeline-tech">Gemini 2.5 Flash</div>
+						</div>
+						<div class="pipeline-step">
+							<div class="pipeline-num">3</div>
+							<div class="pipeline-title">✅ Confirm</div>
+							<div class="pipeline-desc">User reviews & corrects AI-extracted data in the chat interface
+							</div>
+							<div class="pipeline-tech">ChatScreen</div>
+						</div>
+						<div class="pipeline-step">
+							<div class="pipeline-num">4</div>
+							<div class="pipeline-title">📅 Schedule</div>
+							<div class="pipeline-desc">Medications + schedules auto-generated and stored in Room DB
+							</div>
+							<div class="pipeline-tech">Room + WorkManager</div>
+						</div>
+						<div class="pipeline-step">
+							<div class="pipeline-num">5</div>
+							<div class="pipeline-title">📊 Track</div>
+							<div class="pipeline-desc">Notifications fire; user marks taken/missed; adherence dashboard
+								updates</div>
+							<div class="pipeline-tech">AdherenceViewModel</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     DATABASE SCHEMA
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="database">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="database" style="width:16px;height:16px;"></i> Database
+						Schema</div>
+					<h2 class="section-title">Room Database — 4 Entities</h2>
+					<p class="section-desc">Local SQLite database with foreign key relationships, cascading deletes, and
+						reactive Flow queries.</p>
+				</div>
+
+				<div class="db-grid fade-in">
+					<!-- medications -->
+					<div class="db-table">
+						<div class="db-table-header">
+							<i data-lucide="pill" style="width:18px;height:18px;color:#818cf8"></i>
+							<span class="db-table-name">medications</span>
+							<button type="button" class="info-button corner centered" data-modal-title="medications"
+								data-modal-note="Placeholder details for the medications table."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="db-fields">
+							<div class="db-field"><span class="db-pk">PK</span> <span class="db-field-name">id</span>
+								<span class="db-field-type">Long (autoGen)</span>
+							</div>
+							<div class="db-field"><span class="db-field-name">name</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">dosage</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">dosageUnit</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">form</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">frequency</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">mealRelation</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">startDate / endDate</span> <span
+									class="db-field-type">Long / Long?</span></div>
+							<div class="db-field"><span class="db-field-name">notificationSoundUri</span> <span
+									class="db-field-type">String?</span></div>
+							<div class="db-field"><span class="db-field-name">isActive</span> <span
+									class="db-field-type">Boolean</span></div>
+						</div>
+						<div class="db-table-footer">
+							<span class="db-table-badge">15 columns</span>
+						</div>
+					</div>
+
+					<!-- schedules -->
+					<div class="db-table">
+						<div class="db-table-header">
+							<i data-lucide="clock" style="width:18px;height:18px;color:#6ee7b7"></i>
+							<span class="db-table-name">schedules</span>
+							<button type="button" class="info-button corner centered" data-modal-title="schedules"
+								data-modal-note="Placeholder details for the schedules table."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="db-fields">
+							<div class="db-field"><span class="db-pk">PK</span> <span class="db-field-name">id</span>
+								<span class="db-field-type">Long (autoGen)</span>
+							</div>
+							<div class="db-field"><span class="db-fk">FK</span> <span
+									class="db-field-name">medicationId</span> <span class="db-field-type">Long →
+									CASCADE</span></div>
+							<div class="db-field"><span class="db-field-name">timeHour</span> <span
+									class="db-field-type">Int</span></div>
+							<div class="db-field"><span class="db-field-name">timeMinute</span> <span
+									class="db-field-type">Int</span></div>
+							<div class="db-field"><span class="db-field-name">daysOfWeek</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">isEnabled</span> <span
+									class="db-field-type">Boolean</span></div>
+						</div>
+						<div class="db-table-footer">
+							<span class="db-table-badge">FK → medications</span>
+						</div>
+					</div>
+
+					<!-- dose_history -->
+					<div class="db-table">
+						<div class="db-table-header">
+							<i data-lucide="history" style="width:18px;height:18px;color:#fcd34d"></i>
+							<span class="db-table-name">dose_history</span>
+							<button type="button" class="info-button corner centered" data-modal-title="dose_history"
+								data-modal-note="Placeholder details for the dose_history table."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="db-fields">
+							<div class="db-field"><span class="db-pk">PK</span> <span class="db-field-name">id</span>
+								<span class="db-field-type">Long (autoGen)</span>
+							</div>
+							<div class="db-field"><span class="db-fk">FK</span> <span
+									class="db-field-name">medicationId</span> <span class="db-field-type">Long? →
+									SET_NULL</span></div>
+							<div class="db-field"><span class="db-fk">FK</span> <span
+									class="db-field-name">scheduleId</span> <span class="db-field-type">Long? →
+									SET_NULL</span></div>
+							<div class="db-field"><span class="db-field-name">status</span> <span
+									class="db-field-type">"unmarked" | "taken" | "missed"</span></div>
+							<div class="db-field"><span class="db-field-name">scheduledTime</span> <span
+									class="db-field-type">Long (timestamp)</span></div>
+							<div class="db-field"><span class="db-field-name">actionTime</span> <span
+									class="db-field-type">Long? (timestamp)</span></div>
+						</div>
+						<div class="db-table-footer">
+							<span class="db-table-badge">FK → medications, schedules</span>
+						</div>
+					</div>
+
+					<!-- chat_messages -->
+					<div class="db-table">
+						<div class="db-table-header">
+							<i data-lucide="message-circle" style="width:18px;height:18px;color:#c084fc"></i>
+							<span class="db-table-name">chat_messages</span>
+							<button type="button" class="info-button corner centered" data-modal-title="chat_messages"
+								data-modal-note="Placeholder details for the chat_messages table."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="db-fields">
+							<div class="db-field"><span class="db-pk">PK</span> <span class="db-field-name">id</span>
+								<span class="db-field-type">Long (autoGen)</span>
+							</div>
+							<div class="db-field"><span class="db-field-name">content</span> <span
+									class="db-field-type">String</span></div>
+							<div class="db-field"><span class="db-field-name">imageUri</span> <span
+									class="db-field-type">String?</span></div>
+							<div class="db-field"><span class="db-field-name">isFromUser</span> <span
+									class="db-field-type">Boolean</span></div>
+							<div class="db-field"><span class="db-field-name">timestamp</span> <span
+									class="db-field-type">Long</span></div>
+						</div>
+						<div class="db-table-footer">
+							<span class="db-table-badge">Standalone</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     CODEBASE STRUCTURE
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="codebase">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="folder-tree" style="width:16px;height:16px;"></i> Project
+						Structure</div>
+					<h2 class="section-title">Codebase Organization</h2>
+					<p class="section-desc">Modular package structure following MVVM pattern with 6 logical packages
+						under <code
+							style="color:var(--blue-secondary);background:rgba(93,164,224,0.1);padding:2px 8px;border-radius:4px;font-size:0.9rem;">com.example.rxaide</code>
+					</p>
+				</div>
+
+				<div class="structure-grid fade-in">
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="ai/"
+							data-modal-note="Placeholder details for the ai package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon blue"><i data-lucide="brain"
+								style="width:24px;height:24px;"></i></div>
+						<h4>ai/</h4>
+						<p>Gemini API integration — system prompts, image analysis, JSON extraction, chat message
+							building.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ai/GeminiService.kt"
+									target="_blank">GeminiService.kt</a>
+							</li>
+						</ul>
+					</div>
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="data/"
+							data-modal-note="Placeholder details for the data package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon green"><i data-lucide="database"
+								style="width:24px;height:24px;"></i></div>
+						<h4>data/</h4>
+						<p>Room database, entities, DAOs, and repository layer.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/data/RxAideDatabase.kt"
+									target="_blank">RxAideDatabase.kt</a>
+							</li>
+							<li><i data-lucide="folder" style="width:14px;height:14px;color:var(--text-muted)"></i> <a
+									href="https://github.com/Aminul-Islam7/rxaide-cse299/tree/main/app/src/main/java/com/example/rxaide/data/entity"
+									target="_blank">entity/</a> <span class="file-desc">Medication, Schedule,
+									DoseHistory, ChatMessage</span></li>
+							<li><i data-lucide="folder" style="width:14px;height:14px;color:var(--text-muted)"></i> <a
+									href="https://github.com/Aminul-Islam7/rxaide-cse299/tree/main/app/src/main/java/com/example/rxaide/data/dao"
+									target="_blank">dao/</a> <span class="file-desc">4 DAO interfaces</span></li>
+							<li><i data-lucide="folder" style="width:14px;height:14px;color:var(--text-muted)"></i> <a
+									href="https://github.com/Aminul-Islam7/rxaide-cse299/tree/main/app/src/main/java/com/example/rxaide/data/repository"
+									target="_blank">repository/</a> <span class="file-desc">MedicationRepository,
+									ChatRepository</span></li>
+						</ul>
+					</div>
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="ui/screens/"
+							data-modal-note="Placeholder details for the ui/screens package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon purple"><i data-lucide="monitor"
+								style="width:24px;height:24px;"></i></div>
+						<h4>ui/screens/</h4>
+						<p>10 Compose screen composables — all declarative, zero XML.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/HomeScreen.kt"
+									target="_blank">HomeScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/ChatScreen.kt"
+									target="_blank">ChatScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/AddMedicationScreen.kt"
+									target="_blank">AddMedicationScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/MedicationDetailScreen.kt"
+									target="_blank">MedicationDetailScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/CameraScreen.kt"
+									target="_blank">CameraScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/AdherenceScreen.kt"
+									target="_blank">AdherenceScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/NotificationsScreen.kt"
+									target="_blank">NotificationsScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/EditMedicationScreen.kt"
+									target="_blank">EditMedicationScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/MedicationListScreen.kt"
+									target="_blank">MedicationListScreen.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ui/screens/SettingsScreen.kt"
+									target="_blank">SettingsScreen.kt</a>
+							</li>
+						</ul>
+					</div>
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="viewmodel/"
+							data-modal-note="Placeholder details for the viewmodel package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon orange"><i data-lucide="settings"
+								style="width:24px;height:24px;"></i></div>
+						<h4>viewmodel/</h4>
+						<p>3 AndroidViewModels managing all business logic and state.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/viewmodel/ChatViewModel.kt"
+									target="_blank">ChatViewModel.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/viewmodel/MedicationViewModel.kt"
+									target="_blank">MedicationViewModel.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/viewmodel/AdherenceViewModel.kt"
+									target="_blank">AdherenceViewModel.kt</a>
+							</li>
+						</ul>
+					</div>
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="notification/"
+							data-modal-note="Placeholder details for the notification package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon red"><i data-lucide="bell-ring"
+								style="width:24px;height:24px;"></i></div>
+						<h4>notification/</h4>
+						<p>7 components for the complete reminder & notification pipeline.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/ReminderScheduler.kt"
+									target="_blank">ReminderScheduler.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/ReminderWorker.kt"
+									target="_blank">ReminderWorker.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/DoseGenerationWorker.kt"
+									target="_blank">DoseGenerationWorker.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/ReminderActionReceiver.kt"
+									target="_blank">ReminderActionReceiver.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/BootReminderReceiver.kt"
+									target="_blank">BootReminderReceiver.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/NotificationSoundPlayer.kt"
+									target="_blank">NotificationSoundPlayer.kt</a>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/RxAideNotificationChannel.kt"
+									target="_blank">RxAideNotificationChannel.kt</a>
+							</li>
+						</ul>
+					</div>
+					<div class="structure-card">
+						<button type="button" class="info-button corner" data-modal-title="navigation/"
+							data-modal-note="Placeholder details for the navigation package card."><span
+								aria-hidden="true">i</span></button>
+						<div class="structure-card-icon cyan"><i data-lucide="compass"
+								style="width:24px;height:24px;"></i></div>
+						<h4>navigation/</h4>
+						<p>Sealed class routes + NavHost with animated transitions and swipe gestures.</p>
+						<ul class="file-list">
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/navigation/Screen.kt"
+									target="_blank">Screen.kt</a> <span class="file-desc">Route definitions</span>
+							</li>
+							<li><i data-lucide="file-code" style="width:14px;height:14px;color:var(--text-muted)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/navigation/RxAideNavGraph.kt"
+									target="_blank">RxAideNavGraph.kt</a>
+							</li>
+						</ul>
+					</div>
+				</div>
+
+				<!-- Navigation Map -->
+				<div style="margin-top: 64px;">
+					<h3 style="text-align:center; margin-bottom:24px; color: var(--white); font-size:1.3rem;">Screen
+						Navigation Map</h3>
+					<div class="nav-map fade-in">
+						<h4
+							style="text-align:center; margin-bottom:12px; color:var(--text-secondary); font-size:0.85rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">
+							Bottom Navigation Tabs (Swipeable)</h4>
+						<div class="nav-map-grid">
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="home" style="width:24px;height:24px;"></i>
+								</div>
+								<div class="nav-screen-name">Home</div>
+								<div class="nav-screen-route">home</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="pill" style="width:24px;height:24px;"></i>
+								</div>
+								<div class="nav-screen-name">Medications</div>
+								<div class="nav-screen-route">medication_list</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="bot" style="width:24px;height:24px;"></i>
+								</div>
+								<div class="nav-screen-name">Chat</div>
+								<div class="nav-screen-route">chat</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="bell" style="width:24px;height:24px;"></i>
+								</div>
+								<div class="nav-screen-name">Alerts</div>
+								<div class="nav-screen-route">notifications</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="bar-chart-2"
+										style="width:24px;height:24px;"></i></div>
+								<div class="nav-screen-name">Tracker</div>
+								<div class="nav-screen-route">adherence_tracker</div>
+							</div>
+						</div>
+						<h4
+							style="text-align:center; margin:24px 0 12px; color:var(--text-secondary); font-size:0.85rem; font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">
+							Push-Navigation Sub-Screens</h4>
+						<div class="nav-map-grid">
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="camera"
+										style="width:24px;height:24px;"></i></div>
+								<div class="nav-screen-name">Camera</div>
+								<div class="nav-screen-route">camera</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="plus-circle"
+										style="width:24px;height:24px;"></i></div>
+								<div class="nav-screen-name">Add Med</div>
+								<div class="nav-screen-route">add_medication</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="clipboard-list"
+										style="width:24px;height:24px;"></i></div>
+								<div class="nav-screen-name">Med Detail</div>
+								<div class="nav-screen-route">medication_detail/{id}</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="edit" style="width:24px;height:24px;"></i>
+								</div>
+								<div class="nav-screen-name">Edit Med</div>
+								<div class="nav-screen-route">edit_medication/{id}</div>
+							</div>
+							<div class="nav-screen">
+								<div class="nav-screen-icon"><i data-lucide="settings"
+										style="width:24px;height:24px;"></i></div>
+								<div class="nav-screen-name">Settings</div>
+								<div class="nav-screen-route">settings</div>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     KEY FEATURES
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="features">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="sparkles" style="width:16px;height:16px;"></i> System
+						Capabilities</div>
+					<h2 class="section-title">Core Implementation</h2>
+					<p class="section-desc">Technical breakdown of the five primary capabilities implemented within the
+						system.</p>
+				</div>
+
+				<div class="features-grid fade-in">
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="scan" style="width:28px;height:28px;"></i></div>
+						<h4>AI Prescription Scanning</h4>
+						<p>3-pass image analysis: full scan → detailed extraction → cross-verification. Supports
+							handwritten & printed Bangla/English prescriptions. Google Search grounding verifies
+							medicine names against pharmaceutical databases.</p>
+						<span class="feature-tech-tag">Gemini 2.5 Flash · CameraX · 24K thinking tokens</span>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="calendar-clock" style="width:28px;height:28px;"></i>
+						</div>
+						<h4>Automatic Schedule Generation</h4>
+						<p>Decodes Bangladesh-style dose notation (e.g., "1+0+1") into structured schedules. Calculates
+							end dates from duration strings. Creates Medication + Schedule + WorkManager entries in a
+							single transaction.</p>
+						<span class="feature-tech-tag">ChatViewModel · Room · WorkManager</span>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="bell-ring" style="width:28px;height:28px;"></i></div>
+						<h4>Reliable Reminders</h4>
+						<p>24-hour periodic WorkManager tasks with precise initial delays. Custom notification sounds
+							via MediaPlayer. Action buttons (Taken/Missed) handled by BroadcastReceiver. Survives
+							reboots via BootReminderReceiver.</p>
+						<span class="feature-tech-tag">WorkManager · NotificationCompat · BroadcastReceiver</span>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="pie-chart" style="width:28px;height:28px;"></i></div>
+						<h4>Dose Adherence Tracking</h4>
+						<p>DoseGenerationWorker back-fills missed dose records from startDate to today. Time-filtered
+							analytics (Today/Week/Month/All). Per-medication adherence percentages with reactive
+							Flow-based state updates.</p>
+						<span class="feature-tech-tag">AdherenceViewModel · DoseHistoryDao · StateFlow</span>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="message-square-text"
+								style="width:28px;height:28px;"></i></div>
+						<h4>Conversational AI Assistant</h4>
+						<p>Context-aware chat using [CURRENT_MEDICATIONS] injection. Action block parsing:
+							[SCHEDULE_UPDATE], [MEDICATION_UPDATE], [MEDICATION_DELETE] — AI responses trigger real
+							database mutations. 20-message sliding context window.</p>
+						<span class="feature-tech-tag">GeminiService · ChatViewModel · Action Block Parser</span>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon"><i data-lucide="palette" style="width:28px;height:28px;"></i></div>
+						<h4>Polished UI/UX</h4>
+						<p>Material 3 with custom dark/light themes. Animated screen transitions with directional slide.
+							Horizontal swipe between tabs. Pull-to-refresh. Zoomable prescription image previews in
+							chat. Markdown-rendered AI responses.</p>
+						<span class="feature-tech-tag">Jetpack Compose · Material 3 · Compose Markdown</span>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     PROJECT STRUCTURE — SOURCE TREE
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="project-structure">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="folder-open" style="width:16px;height:16px;"></i> Project
+						Structure</div>
+					<h2 class="section-title">Source Code Overview</h2>
+					<p class="section-desc">These are the files worth opening live during the presentation: app
+						bootstrap, AI extraction, reminder workers, navigation flow, and adherence tracking.</p>
+				</div>
+
+				<div class="fade-in" style="display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 32px;">
+
+					<div class="code-block-wrapper" style="margin-top:0;">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="folder-tree"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/tree/main/app/src/main/java/com/example/rxaide"
+									target="_blank">com/example/rxaide/</a>
+							</div>
+							<span class="code-block-lang">40 Kotlin Files</span>
+							<button type="button" class="info-button corner centered" data-modal-title="Source Tree"
+								data-modal-note="Placeholder details for the project source tree."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body" style="max-height:680px;">
+							<pre style="font-size:0.82rem;line-height:1.7;">
+<span class="fn">┌─ MainActivity.kt</span>          <span class="cm">// Theme wrapper, edge-to-edge, NavGraph</span>
+<span class="fn">├─ RxAideApplication.kt</span>      <span class="cm">// Notification channel, startup worker, repositories</span>
+│
+<span class="an">├── ai/</span>                        <span class="cm">// Gemini OCR + chat pipeline</span>
+│   <span class="fn">└─ GeminiService.kt</span>       <span class="cm">// Prompts, search grounding, JSON extraction</span>
+│
+<span class="an">├── data/</span>                      <span class="cm">// Room database + repositories</span>
+│   <span class="an">├── entity/</span>
+│   │   <span class="ty">├─ Medication.kt</span>      <span class="cm">// Medication schema + reminder metadata</span>
+│   │   <span class="ty">├─ Schedule.kt</span>        <span class="cm">// Reminder time slots + active days</span>
+│   │   <span class="ty">├─ DoseHistory.kt</span>     <span class="cm">// Taken / missed / unmarked history</span>
+│   │   <span class="ty">└─ ChatMessage.kt</span>     <span class="cm">// Chat transcript persistence</span>
+│   <span class="an">├── dao/</span>
+│   │   <span class="ty">├─ MedicationDao.kt</span>   <span class="cm">// CRUD + active medication queries</span>
+│   │   <span class="ty">├─ ScheduleDao.kt</span>     <span class="cm">// Schedule CRUD by medication ID</span>
+│   │   <span class="ty">├─ DoseHistoryDao.kt</span>  <span class="cm">// Status updates + adherence counts</span>
+│   │   <span class="ty">└─ ChatMessageDao.kt</span>  <span class="cm">// Message insert + retrieval</span>
+│   <span class="an">├── repository/</span>
+│   │   <span class="ty">├─ MedicationRepository.kt</span>  <span class="cm">// Medication, schedule, and dose ops</span>
+│   │   <span class="ty">└─ ChatRepository.kt</span>        <span class="cm">// Chat message ops</span>
+│   <span class="fn">└─ RxAideDatabase.kt</span>     <span class="cm">// Room DB singleton + destructive migration</span>
+│
+<span class="an">├── navigation/</span>                <span class="cm">// Screen routing and transitions</span>
+│   <span class="fn">├─ Screen.kt</span>             <span class="cm">// Type-safe route definitions</span>
+│   <span class="fn">└─ RxAideNavGraph.kt</span>     <span class="cm">// Bottom nav, swipe navigation, camera -> chat</span>
+│
+<span class="an">├── notification/</span>              <span class="cm">// Reminders, backfill, sounds</span>
+│   <span class="fn">├─ ReminderScheduler.kt</span>  <span class="cm">// Periodic WorkManager reminders</span>
+│   <span class="fn">├─ ReminderWorker.kt</span>     <span class="cm">// Notification + dose history row</span>
+│   <span class="fn">├─ DoseGenerationWorker.kt</span> <span class="cm">// Back-fills missed dose records</span>
+│   <span class="fn">├─ ReminderActionReceiver.kt</span> <span class="cm">// Mark taken / missed</span>
+│   <span class="fn">├─ BootReminderReceiver.kt</span>   <span class="cm">// Reschedule on reboot</span>
+│   <span class="fn">├─ NotificationSoundPlayer.kt</span> <span class="cm">// Per-medication ringtone playback</span>
+│   <span class="fn">└─ RxAideNotificationChannel.kt</span> <span class="cm">// Silent reminder channel</span>
+│
+<span class="an">├── ui/</span>                        <span class="cm">// Compose UI layer</span>
+│   <span class="an">├── screens/</span>              <span class="cm">// 10 Compose screens</span>
+│   │   <span class="st">├─ HomeScreen.kt</span>      <span class="cm">// Dashboard with quick actions and stats</span>
+│   │   <span class="st">├─ MedicationListScreen.kt</span>  <span class="cm">// Medication cards and delete flow</span>
+│   │   <span class="st">├─ ChatScreen.kt</span>      <span class="cm">// AI chat, image preview, markdown, quick actions</span>
+│   │   <span class="st">├─ NotificationsScreen.kt</span>   <span class="cm">// Pending doses and recent history</span>
+│   │   <span class="st">├─ AdherenceScreen.kt</span>       <span class="cm">// Adherence dashboard and filters</span>
+│   │   <span class="st">├─ CameraScreen.kt</span>    <span class="cm">// Camera capture + gallery import</span>
+│   │   <span class="st">├─ AddMedicationScreen.kt</span>   <span class="cm">// Date/time pickers, sound picker, schedule builder</span>
+│   │   <span class="st">├─ MedicationDetailScreen.kt</span> <span class="cm">// Full medication details + schedules</span>
+│   │   <span class="st">├─ EditMedicationScreen.kt</span>  <span class="cm">// Edit flow + reminder rescheduling</span>
+│   │   <span class="st">└─ SettingsScreen.kt</span>        <span class="cm">// Theme toggle and app info</span>
+│   <span class="an">├── theme/</span>
+│   │   <span class="ty">├─ Color.kt</span>           <span class="cm">// Brand color palette</span>
+│   │   <span class="ty">├─ Theme.kt</span>           <span class="cm">// Material 3 light/dark schemes</span>
+│   │   <span class="ty">└─ Type.kt</span>            <span class="cm">// Typography scale</span>
+│   <span class="an">└── util/</span>
+│       <span class="ty">└─ MedicationFormIcons.kt</span>  <span class="cm">// Custom vector icons</span>
+│
+<span class="an">└── viewmodel/</span>                 <span class="cm">// Business logic</span>
+    <span class="fn">├─ MedicationViewModel.kt</span> <span class="cm">// CRUD + reminder scheduling</span>
+    <span class="fn">├─ ChatViewModel.kt</span>       <span class="cm">// Confirm, schedule, and action blocks</span>
+    <span class="fn">└─ AdherenceViewModel.kt</span>  <span class="cm">// Stats aggregation + filtering</span>
+</pre>
+						</div>
+					</div>
+
+					<div style="display:flex; flex-direction:column; gap:20px;">
+						<div
+							style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:16px; padding:28px; position:relative;">
+							<button type="button" class="info-button corner" data-modal-title="Data Flow"
+								data-modal-note="Placeholder details for the data flow card."><span
+									aria-hidden="true">i</span></button>
+							<h4
+								style="color:var(--white); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+								<i data-lucide="arrow-right-left"
+									style="width:18px;height:18px;color:var(--blue-secondary)"></i> Data Flow
+							</h4>
+							<div style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem;">
+								<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+									<span
+										style="background:rgba(79,101,214,0.2); color:#818cf8; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">User
+										Action</span>
+									<span style="color:var(--text-muted);">-></span>
+									<span
+										style="background:rgba(16,185,129,0.15); color:#6ee7b7; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">Screen</span>
+									<span style="color:var(--text-muted);">-></span>
+									<span
+										style="background:rgba(16,185,129,0.15); color:#6ee7b7; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">ViewModel</span>
+									<span style="color:var(--text-muted);">-></span>
+									<span
+										style="background:rgba(245,158,11,0.15); color:#fcd34d; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">Repository
+										/ Service</span>
+								</div>
+								<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+									<span
+										style="background:rgba(245,158,11,0.15); color:#fcd34d; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">Room
+										/ Gemini</span>
+									<span style="color:var(--text-muted);">-></span>
+									<span
+										style="background:rgba(16,185,129,0.15); color:#6ee7b7; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">StateFlow</span>
+									<span style="color:var(--text-muted);">-></span>
+									<span
+										style="background:rgba(79,101,214,0.2); color:#818cf8; padding:4px 10px; border-radius:8px; font-weight:600; font-size:0.78rem; white-space:nowrap;">UI
+										Recomposition</span>
+								</div>
+							</div>
+						</div>
+
+						<div
+							style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:16px; padding:28px;">
+							<h4
+								style="color:var(--white); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+								<i data-lucide="palette" style="width:18px;height:18px;color:var(--blue-secondary)"></i>
+								Tree Color Legend
+							</h4>
+							<div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem;">
+								<div style="display:flex; align-items:center; gap:10px;"><span
+										style="color:#fbbf24; font-family:'JetBrains Mono',monospace;">██</span> <span
+										style="color:var(--text-secondary);">Package / Directory</span></div>
+								<div style="display:flex; align-items:center; gap:10px;"><span
+										style="color:#93c5fd; font-family:'JetBrains Mono',monospace;">██</span> <span
+										style="color:var(--text-secondary);">Core Logic (Singletons, ViewModels,
+										Services)</span></div>
+								<div style="display:flex; align-items:center; gap:10px;"><span
+										style="color:#67e8f9; font-family:'JetBrains Mono',monospace;">██</span> <span
+										style="color:var(--text-secondary);">Data Models (Entities, DAOs, Theme)</span>
+								</div>
+								<div style="display:flex; align-items:center; gap:10px;"><span
+										style="color:#6ee7b7; font-family:'JetBrains Mono',monospace;">██</span> <span
+										style="color:var(--text-secondary);">UI Screens (Composable Functions)</span>
+								</div>
+								<div style="display:flex; align-items:center; gap:10px;"><span
+										style="color:#64748b; font-family:'JetBrains Mono',monospace;">██</span> <span
+										style="color:var(--text-secondary);">Inline Comments</span></div>
+							</div>
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     CODE DEEP DIVE
+     ═══════════════════════════════════════════════════════════════ -->
+		<section id="code-deep-dive">
+			<div class="section-glow"></div>
+			<div class="container">
+				<div class="section-header fade-in">
+					<div class="section-label"><i data-lucide="code-2" style="width:16px;height:16px;"></i> Code Deep
+						Dive</div>
+					<h2 class="section-title">Key Implementation Details</h2>
+					<p class="section-desc">Annotated code excerpts from the most critical parts of the codebase.</p>
+				</div>
+
+				<!-- Code Block 1: Room Entity -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>1. Entity Design</strong> — The <code>Medication</code> data
+						class maps to the <code>medications</code> SQLite table. Room's annotations handle schema
+						generation at compile time via KSP.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/data/entity/Medication.kt"
+									target="_blank">data/entity/Medication.kt</a>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered" data-modal-title="Entity Design"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="an">@Entity</span>(<span class="st">tableName = "medications"</span>)
+<span class="kw">data class</span> <span class="ty">Medication</span>(
+	<span class="an">@PrimaryKey</span>(autoGenerate = <span class="kw">true</span>)
+	<span class="kw">val</span> id: <span class="ty">Long</span> = <span class="nu">0</span>,
+	<span class="kw">val</span> name: <span class="ty">String</span>,
+	<span class="kw">val</span> dosage: <span class="ty">String</span>,                          <span class="cm">// e.g., "500"</span>
+	<span class="kw">val</span> dosageUnit: <span class="ty">String</span> = <span class="st">"mg"</span>,               <span class="cm">// "mg", "ml", "tablet", "capsule"</span>
+	<span class="kw">val</span> form: <span class="ty">String</span> = <span class="st">""</span>,                        <span class="cm">// e.g., "Tablet", "Capsule", "Syrup"</span>
+	<span class="kw">val</span> frequency: <span class="ty">String</span> = <span class="st">""</span>,                   <span class="cm">// e.g., "Once daily", "Twice daily"</span>
+	<span class="kw">val</span> mealRelation: <span class="ty">String</span> = <span class="st">"No relation"</span>,
+	<span class="kw">val</span> startDate: <span class="ty">Long</span> = System.currentTimeMillis(),
+	<span class="kw">val</span> endDate: <span class="ty">Long?</span> = <span class="kw">null</span>,                    <span class="cm">// null = ongoing medication</span>
+	<span class="kw">val</span> notificationSoundUri: <span class="ty">String?</span> = <span class="kw">null</span>,
+	<span class="kw">val</span> isActive: <span class="ty">Boolean</span> = <span class="kw">true</span>,
+	<span class="kw">val</span> createdAt: <span class="ty">Long</span> = System.currentTimeMillis()
+)</pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 2: GeminiService system prompt excerpt -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>2. AI System Prompt — Bangladesh Dose Notation Decoder</strong> —
+						The system prompt teaches Gemini how to interpret local prescription conventions.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ai/GeminiService.kt"
+									target="_blank">ai/GeminiService.kt</a> <span
+									style="color:var(--text-muted);font-size:0.75rem;margin-left:8px;">lines
+									66–77</span>
+							</div>
+							<span class="code-block-lang">Kotlin (String)</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="Bangladesh Dose Notation Decoder"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="cm">━━━ DECODE BANGLADESH-STYLE DOSAGE NOTATION ━━━</span>
+<span class="cm">These indicate doses per time of day as (Morning + Noon + Night):</span>
+• <span class="st">"1+1+1"</span> → 1 in morning, 1 at noon, 1 at night → frequency = <span class="st">"Three times daily"</span>
+• <span class="st">"1+0+1"</span> → 1 in morning, 1 at night            → frequency = <span class="st">"Twice daily"</span>
+• <span class="st">"0+0+1"</span> → 1 at night only                     → frequency = <span class="st">"Once daily"</span>
+• <span class="st">"½+0+½"</span> → half in morning, half at night       → frequency = <span class="st">"Twice daily"</span>
+• Bengali digits: <span class="st">০=0, ১=1, ২=2, ৩=3, ৪=4, ৫=5, ৬=6, ৭=7, ৮=8, ৯=9</span></pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 3: Gemini Image Analysis -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>3. Multimodal Image Analysis</strong> — Sends the prescription
+						photo to Gemini with a 24K thinking budget. The <code>GoogleSearch</code> tool is attached for
+						medicine name verification via search grounding.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/ai/GeminiService.kt"
+									target="_blank">ai/GeminiService.kt</a> <span
+									style="color:var(--text-muted);font-size:0.75rem;margin-left:8px;">sendImageMessage()</span>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="Multimodal Image Analysis"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="kw">suspend fun</span> <span class="fn">sendImageMessage</span>(imageUri: <span class="ty">String</span>, chatHistory: <span class="ty">List&lt;ChatMessage&gt;</span>): <span class="ty">String</span> =
+	withContext(<span class="ty">Dispatchers.IO</span>) {
+		<span class="kw">val</span> imageBytes = <span class="fn">loadImageBytes</span>(Uri.parse(imageUri))
+		<span class="kw">val</span> contents = <span class="fn">buildChatContents</span>(chatHistory, IMAGE_ANALYSIS_PROMPT, imageBytes)
+
+		<span class="kw">val</span> config = <span class="ty">GenerateContentConfig</span>.builder()
+			.systemInstruction(Content.fromParts(Part.fromText(SYSTEM_PROMPT)))
+			.tools(googleSearchTool)          <span class="cm">// Google Search grounding enabled</span>
+			.temperature(<span class="nu">0.1f</span>)
+			.maxOutputTokens(<span class="nu">4096</span>)
+			.thinkingConfig(
+				<span class="ty">ThinkingConfig</span>.builder()
+					.thinkingBudget(<span class="nu">24576</span>)      <span class="cm">// 24K tokens for deep analysis</span>
+					.build()
+			).build()
+
+		client.models.<span class="fn">generateContent</span>(<span class="st">"gemini-2.5-flash"</span>, contents, config)
+			.text() ?: <span class="st">"Could not analyze this prescription."</span>
+	}</pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 4: Action Block Parsing -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>4. Chat → Database Mutations via Action Blocks</strong> — When
+						the AI outputs structured <code>[SCHEDULE_UPDATE]</code> blocks, the ChatViewModel parses them
+						with regex and executes real database changes + WorkManager rescheduling.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/viewmodel/ChatViewModel.kt"
+									target="_blank">viewmodel/ChatViewModel.kt</a> <span
+									style="color:var(--text-muted);font-size:0.75rem;margin-left:8px;">parseAndExecuteScheduleUpdates()</span>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="Chat → Database Mutations via Action Blocks"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="kw">private suspend fun</span> <span class="fn">parseAndExecuteScheduleUpdates</span>(response: <span class="ty">String</span>): <span class="ty">String</span> {
+	<span class="kw">val</span> pattern = <span class="ty">Regex</span>(<span class="st">"""\[SCHEDULE_UPDATE]\s*\n(.*?)\[/SCHEDULE_UPDATE]"""</span>,
+		<span class="ty">RegexOption</span>.DOT_MATCHES_ALL)
+
+	<span class="kw">for</span> (match <span class="kw">in</span> pattern.findAll(response)) {
+		<span class="kw">val</span> medName = <span class="cm">/* parse medication: line */</span>
+		<span class="kw">val</span> medication = medicationRepository.<span class="fn">findActiveMedicationByName</span>(medName)
+		<span class="kw">val</span> schedules = medicationRepository.<span class="fn">getSchedulesForMedicationOnce</span>(medication.id)
+
+		<span class="cm">// Apply each time change to the database</span>
+		<span class="kw">for</span> (change <span class="kw">in</span> timeChanges) {
+			<span class="kw">val</span> updated = schedule.copy(timeHour = change.newHour, timeMinute = change.newMin)
+			medicationRepository.<span class="fn">updateSchedule</span>(updated)
+		}
+
+		<span class="cm">// Reschedule WorkManager reminders with new times</span>
+		<span class="ty">ReminderScheduler</span>.<span class="fn">cancelRemindersForMedication</span>(ctx, medication.id)
+		<span class="ty">ReminderScheduler</span>.<span class="fn">scheduleAllReminders</span>(ctx, medication, updatedSchedules, soundUri)
+	}
+	<span class="kw">return</span> result <span class="cm">// cleaned display text, action blocks stripped</span>
+}</pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 5: ReminderScheduler -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>5. WorkManager Reminder Scheduling</strong> — Calculates the
+						exact millisecond delay until the next occurrence of the scheduled time, then enqueues a 24-hour
+						periodic worker.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/ReminderScheduler.kt"
+									target="_blank">notification/ReminderScheduler.kt</a>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="WorkManager Reminder Scheduling"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="kw">fun</span> <span class="fn">scheduleReminder</span>(context: <span class="ty">Context</span>, medication: <span class="ty">Medication</span>, schedule: <span class="ty">Schedule</span>) {
+	<span class="kw">val</span> now = <span class="ty">Calendar</span>.getInstance()
+	<span class="kw">val</span> target = <span class="ty">Calendar</span>.getInstance().apply {
+		set(HOUR_OF_DAY, schedule.timeHour)
+		set(MINUTE, schedule.timeMinute)
+	}
+	<span class="cm">// If target already passed today, schedule for tomorrow</span>
+	<span class="kw">if</span> (target.before(now)) target.add(DAY_OF_YEAR, <span class="nu">1</span>)
+
+	<span class="kw">val</span> initialDelayMs = target.timeInMillis - now.timeInMillis
+
+	<span class="kw">val</span> workRequest = <span class="ty">PeriodicWorkRequestBuilder</span>&lt;<span class="ty">ReminderWorker</span>&gt;(<span class="nu">24</span>, <span class="ty">TimeUnit.HOURS</span>)
+		.setInitialDelay(initialDelayMs, <span class="ty">TimeUnit.MILLISECONDS</span>)
+		.setInputData(data)    <span class="cm">// med name, dosage, schedule ID, sound URI</span>
+		.addTag(<span class="st">"med_reminder_${medication.id}_${schedule.id}"</span>)
+		.build()
+
+	<span class="ty">WorkManager</span>.getInstance(context)
+		.enqueueUniquePeriodicWork(tag, <span class="ty">REPLACE</span>, workRequest)
+}</pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 6: Notification with Actions -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>6. Interactive Notification with Action Buttons</strong> — Each
+						notification includes "✅ Taken" and "❌ Missed" buttons that trigger a BroadcastReceiver to
+						update the dose_history table without opening the app.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/notification/ReminderWorker.kt"
+									target="_blank">notification/ReminderWorker.kt</a>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="Interactive Notification with Action Buttons"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="kw">val</span> builder = <span class="ty">NotificationCompat</span>.Builder(ctx, CHANNEL_ID)
+	.setContentTitle(<span class="st">"💊 Time to take $name"</span>)
+	.setContentText(<span class="st">"Take your dose — $dosage $dosageUnit"</span>)
+	.setPriority(<span class="ty">NotificationCompat</span>.PRIORITY_HIGH)
+	.setAutoCancel(<span class="kw">true</span>)
+	.addAction(icon, <span class="st">"✅ Taken"</span>, takenPendingIntent)     <span class="cm">// → ReminderActionReceiver</span>
+	.addAction(icon, <span class="st">"❌ Missed"</span>, missedPendingIntent)   <span class="cm">// → ReminderActionReceiver</span>
+	.setSilent(<span class="kw">true</span>)   <span class="cm">// Sound played via MediaPlayer instead</span>
+
+<span class="cm">// Custom sound playback (bypasses Android 8+ channel-level sound restriction)</span>
+<span class="ty">NotificationSoundPlayer</span>.<span class="fn">play</span>(ctx, soundUri)</pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- Code Block 7: Navigation -->
+				<div class="code-section fade-in">
+					<p class="code-annotation"><strong>7. Type-Safe Navigation with Sealed Classes</strong> — All routes
+						defined as sealed class objects. Parameterized routes use <code>{medicationId}</code> for
+						type-safe argument passing.</p>
+					<div class="code-block-wrapper">
+						<div class="code-block-header">
+							<div class="code-block-file">
+								<i data-lucide="file-code"
+									style="width:14px;height:14px;color:var(--blue-secondary)"></i>
+								<a href="https://github.com/Aminul-Islam7/rxaide-cse299/blob/main/app/src/main/java/com/example/rxaide/navigation/Screen.kt"
+									target="_blank">navigation/Screen.kt</a>
+							</div>
+							<span class="code-block-lang">Kotlin</span>
+							<button type="button" class="info-button corner centered"
+								data-modal-title="Type-Safe Navigation with Sealed Classes"
+								data-modal-note="Placeholder details for this code block."><span
+									aria-hidden="true">i</span></button>
+						</div>
+						<div class="code-block-body">
+							<pre><span class="kw">sealed class</span> <span class="ty">Screen</span>(<span class="kw">val</span> route: <span class="ty">String</span>) {
+	<span class="kw">data object</span> <span class="ty">Home</span>           : <span class="ty">Screen</span>(<span class="st">"home"</span>)
+	<span class="kw">data object</span> <span class="ty">MedicationList</span> : <span class="ty">Screen</span>(<span class="st">"medication_list"</span>)
+	<span class="kw">data object</span> <span class="ty">AddMedication</span>  : <span class="ty">Screen</span>(<span class="st">"add_medication"</span>)
+	<span class="kw">data object</span> <span class="ty">Camera</span>         : <span class="ty">Screen</span>(<span class="st">"camera"</span>)
+	<span class="kw">data object</span> <span class="ty">Chat</span>           : <span class="ty">Screen</span>(<span class="st">"chat"</span>)
+	<span class="kw">data object</span> <span class="ty">AdherenceTracker</span>: <span class="ty">Screen</span>(<span class="st">"adherence_tracker"</span>)
+	<span class="kw">data object</span> <span class="ty">Notifications</span>  : <span class="ty">Screen</span>(<span class="st">"notifications"</span>)
+	<span class="kw">data object</span> <span class="ty">Settings</span>       : <span class="ty">Screen</span>(<span class="st">"settings"</span>)
+	<span class="kw">data object</span> <span class="ty">MedicationDetail</span> : <span class="ty">Screen</span>(<span class="st">"medication_detail/{medicationId}"</span>) {
+		<span class="kw">fun</span> <span class="fn">createRoute</span>(medicationId: <span class="ty">Long</span>) = <span class="st">"medication_detail/$medicationId"</span>
+	}
+}</pre>
+						</div>
+					</div>
+				</div>
+
+			</div>
+		</section>
+
+		<!-- ═══════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════ -->
+		<footer>
+			<img src="https://raw.githubusercontent.com/Aminul-Islam7/rxaide-cse299/refs/heads/main/app/src/main/res/drawable/rxaide_logo_with_name.png"
+				alt="RxAide">
+			<p>CSE299 — Junior Design Project · Section 4, Group 2 · Spring 2026 · North South University</p>
+			<div class="footer-links">
+				<a href="https://github.com/Aminul-Islam7/rxaide-cse299" target="_blank">
+					<svg class="github-icon" style="width:14px;height:14px;" viewBox="0 0 1024 1024"
+						xmlns="http://www.w3.org/2000/svg">
+						<path fill-rule="evenodd" clip-rule="evenodd"
+							d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z"
+							transform="scale(64)" fill="currentColor" />
+					</svg> GitHub Repository
+				</a>
+				<!-- <a href="https://github.com/Aminul-Islam7/rxaide-cse299/tree/main/docs" target="_blank">
+            <i data-lucide="file-text" style="width:14px;height:14px;"></i> Project Documentation
+        </a> -->
+			</div>
+		</footer>
+	</div> <!-- /.main-content -->
+
+	<div class="info-modal-overlay" id="info-modal-overlay" aria-hidden="true">
+		<div class="info-modal" role="dialog" aria-modal="true" aria-labelledby="info-modal-title">
+			<div class="info-modal-header">
+				<div>
+					<div class="info-modal-title" id="info-modal-title">Placeholder Title</div>
+					<div class="info-modal-subtitle" id="info-modal-subtitle">Details will be added later.</div>
+				</div>
+				<button type="button" class="info-modal-close" id="info-modal-close" aria-label="Close modal">×</button>
+			</div>
+			<div class="info-modal-body">
+				<div class="info-modal-placeholder" id="info-modal-body">Placeholder text for this modal.</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════════ -->
+	<script>
+		// Initialize Highlight.js
+		hljs.highlightAll();
+
+		// Initialize Lucide icons
+		lucide.createIcons();
+
+		// Active sidebar link highlighting on scroll
+		const allAnchors = document.querySelectorAll('[id]');
+		const sidebarLinks = document.querySelectorAll('.sidebar-links a');
+
+		function updateActiveLink() {
+			let current = '';
+			allAnchors.forEach(el => {
+				const rect = el.getBoundingClientRect();
+				if (rect.top <= 150) {
+					current = el.getAttribute('id');
+				}
+			});
+			sidebarLinks.forEach(link => {
+				link.classList.remove('active');
+				if (link.getAttribute('href') === '#' + current) {
+					link.classList.add('active');
+				}
+			});
+		}
+		window.addEventListener('scroll', updateActiveLink);
+		updateActiveLink();
+
+		// Scroll-triggered fade-in animations
+		const observer = new IntersectionObserver((entries) => {
+			entries.forEach(entry => {
+				if (entry.isIntersecting) {
+					entry.target.classList.add('visible');
+				}
+			});
+		}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+		document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+		// Info button modal behavior
+		const infoModalOverlay = document.getElementById('info-modal-overlay');
+		const infoModalTitle = document.getElementById('info-modal-title');
+		const infoModalSubtitle = document.getElementById('info-modal-subtitle');
+		const infoModalBody = document.getElementById('info-modal-body');
+		const infoModalClose = document.getElementById('info-modal-close');
+		const infoButtons = document.querySelectorAll('.info-button[data-modal-title]');
+
+		const modalContentByTitle = {
+			'Source Files': `
+				<p><strong>What this stat means:</strong> The source-file count gives a quick sense of how much implementation code exists behind the demo. It is not just a vanity number; it tells you the project has enough moving parts to cover UI, data, AI, notifications, and navigation separately.</p>
+				<p><strong>Why it matters:</strong> On a student project like RxAide, a lower count often means logic has been collapsed into a few large files, which makes maintenance and review harder. A healthier count usually suggests responsibilities are split across smaller units, which is exactly what this app does with its package structure.</p>
+				<p><strong>How to interpret it in RxAide:</strong> The codebase is divided into <em>ai</em>, <em>data</em>, <em>navigation</em>, <em>notification</em>, <em>ui</em>, and <em>viewmodel</em>. That split is important because each area changes for different reasons. UI work should not force database rewrites, and notification changes should not affect Gemini prompt logic.</p>
+				<p><strong>Impact on the project:</strong> The file count reflects modularity. It also makes live presentations easier because each file category can be explained as part of a clean architecture story instead of as one tangled implementation.</p>
+			`,
+			'Screens': `
+				<p><strong>What this stat means:</strong> This is the number of Compose screens that form the visible user journey of the app.</p>
+				<p><strong>Why it matters:</strong> Every screen is a distinct interaction surface. Together they show that RxAide is not a single-purpose utility; it is a multi-step workflow that starts with onboarding the user, moves through medication management, and ends with reminders, adherence review, and settings.</p>
+				<p><strong>How the app uses them:</strong> The screens are routed through Navigation Compose. Most of them read state from a ViewModel, render the current UI, and emit events such as add medication, open camera, send chat message, edit a schedule, or mark a dose as taken.</p>
+				<p><strong>Impact on the project:</strong> The screen count shows the app has real feature depth. It also shows the team separated each major task into its own composable screen, which keeps the UI scalable and easier to revise during the thesis presentation.</p>
+			`,
+			'DB Entities': `
+				<p><strong>What this stat means:</strong> These are the persistent data models stored in Room.</p>
+				<p><strong>Why it matters:</strong> RxAide depends on local persistence. Medications, schedules, dose history, and chat messages are not interchangeable; each one captures a different part of the user experience and a different part of the app's state.</p>
+				<p><strong>How they are used:</strong> The entities map directly to SQLite tables and are accessed through DAOs and repositories. They are what make reminders repeat correctly, what make adherence metrics calculable, and what let the chat remember prior conversations.</p>
+				<p><strong>Impact on the project:</strong> Without these entities, the app would lose durability between sessions and could not support history, analytics, or AI-assisted follow-up.</p>
+			`,
+			'ViewModels': `
+				<p><strong>What this stat means:</strong> The ViewModel count shows how many independent business-logic controllers the app uses to keep the UI clean.</p>
+				<p><strong>Why it matters:</strong> In MVVM, ViewModels are where the app's workflows live. They prevent composables from becoming overloaded with persistence code, scheduling logic, or AI orchestration.</p>
+				<p><strong>How they are used:</strong> RxAide uses separate ViewModels for medication management, conversation handling, and adherence analysis. Each one owns state, launches coroutines, calls repositories, and publishes results back to the screen through reactive state.</p>
+				<p><strong>Impact on the project:</strong> This separation improves testability and maintainability. It also makes the codebase easier to explain because each ViewModel maps to a clear feature area.</p>
+			`,
+			'Events & Background': `
+				<p><strong>What this stat means:</strong> This stat groups the background pieces that keep the app alive when it is not open and the reminder flow that turns scheduled medication into real device behavior.</p>
+				<p><strong>Why it matters:</strong> Medication reminders are only useful if they still work after the app is dismissed, the phone reboots, or the user interacts with the notification instead of opening the app. RxAide depends on background infrastructure for reliability, not just for convenience.</p>
+				<p><strong>The 7 items it represents:</strong></p>
+				<ul>
+					<li><strong>ReminderScheduler.kt</strong> schedules reminder jobs from stored medication time data.</li>
+					<li><strong>ReminderWorker.kt</strong> builds and displays the actual notification when a reminder is due.</li>
+					<li><strong>DoseGenerationWorker.kt</strong> back-fills missing dose history rows so adherence metrics stay accurate.</li>
+					<li><strong>ReminderActionReceiver.kt</strong> handles the Taken and Missed action buttons from the notification.</li>
+					<li><strong>BootReminderReceiver.kt</strong> re-establishes reminders after device reboot.</li>
+					<li><strong>NotificationSoundPlayer.kt</strong> plays the custom reminder audio independently of the channel sound setting.</li>
+					<li><strong>RxAideNotificationChannel.kt</strong> defines the Android notification channel used to register and control reminder behavior.</li>
+				</ul>
+				<p><strong>Impact on the project:</strong> These seven pieces are what make the reminder system dependable. Together they cover scheduling, delivery, interaction, recovery, and audio feedback, which is why this app behaves like a real medication assistant rather than a static demo.</p>
+			`,
+			'Core Platform & Language': `
+				<p><strong>Kotlin:</strong> Kotlin is the implementation language for the whole app. It is used for Compose screens, ViewModels, Room entities and DAOs, notification classes, repository logic, and AI integration. Its null-safety and coroutine support are especially important because RxAide has a lot of asynchronous work.</p>
+				<p><strong>Why Kotlin was the right choice:</strong> The project relies on structured concurrency, clean data classes, extension-friendly APIs, and concise syntax. Kotlin reduces boilerplate in the data layer and makes the ViewModel and coroutine code easier to follow in a presentation setting.</p>
+				<p><strong>Android SDK 36 / minSdk 26:</strong> The Android SDK provides the runtime APIs used by the app: Compose, WorkManager, notifications, camera access, lifecycle integration, and storage access. The minimum SDK level of 26 is particularly important because Android 8.0 introduced notification channels, which the reminder system depends on for correct delivery behavior.</p>
+				<p><strong>Gradle (Kotlin DSL):</strong> Gradle is the build system that wires the whole project together. In RxAide it manages plugin configuration, dependency versions, Compose setup, Room/KSP code generation, packaging, and build-time consistency. Kotlin DSL is used so the build scripts match the language of the project and stay type-safe.</p>
+				<p><strong>Impact on the project:</strong> These three pieces define the foundation of the app. Kotlin defines how the code is written, Android SDK defines what capabilities are available at runtime, and Gradle defines how the project is assembled, generated, and shipped.</p>
+			`,
+			'UI Framework & Design': `
+				<p><strong>Jetpack Compose:</strong> Compose is the UI framework used throughout the app. Every screen is built as a composable function, which means the interface is driven by state rather than by imperative view manipulation. That is important for screens like medication lists, chat, adherence charts, and reminder settings, where the UI must update as the underlying state changes.</p>
+				<p><strong>Material 3:</strong> Material 3 gives the app its visual language, spacing patterns, and accessible component defaults. RxAide layers a custom dark theme and branded color system over Material 3 so the interface feels designed for the project instead of like a default template.</p>
+				<p><strong>Material Icons Extended:</strong> The extended icon set gives the project a richer symbol vocabulary for navigation, status, actions, and cards. This helps the UI remain readable without adding custom assets for every small symbol.</p>
+				<p><strong>Coil Compose:</strong> Coil is used wherever the app needs to load image content asynchronously inside Compose. In RxAide that matters primarily for prescription photos and chat image previews, where the user can capture or import an image and the UI must display it smoothly without blocking the main thread. In practice, Coil is the bridge between an image URI or bitmap source and a composable image element, so it makes the chat and camera flows feel responsive. It is used in the project because prescription analysis depends on showing the user exactly what image was attached, and because image previews are part of the review loop before the AI output is confirmed.</p>
+				<p><strong>Compose Markdown:</strong> Markdown rendering is used in the chat interface so AI responses can be displayed with structure rather than as plain text. That improves readability for multi-paragraph instructions, bullet-like content, and formatted revisions.</p>
+				<p><strong>Impact on the project:</strong> This stack makes the interface consistent, reactive, and presentation-friendly. It also supports the demo narrative because the UI is modern enough to showcase the technical depth of the app.</p>
+			`,
+			'Data Layer & AI': `
+				<p><strong>Room Database:</strong> Room is the local persistence layer. It stores the canonical data for medications, schedules, dose history, and chat messages. Instead of manually writing raw SQL everywhere, the app uses annotated entities and DAO interfaces so schema and queries remain compile-time checked.</p>
+				<p><strong>Gemini 2.5 Flash:</strong> Gemini is the AI engine behind prescription scanning and conversational assistance. The app uses it to read prescription photos, interpret dosage notation, extract structured medication data, and support conversational edits to schedules.</p>
+				<p><strong>KSP:</strong> Kotlin Symbol Processing generates the Room implementation code during the build. That matters because the project uses annotations heavily, and KSP turns those annotations into concrete database code without hand-written boilerplate.</p>
+				<p><strong>Coroutines + StateFlow:</strong> Coroutines are used to run database and network work off the main thread, while StateFlow pushes the latest results back into the UI. This combination is what keeps the app responsive even while the AI is processing an image or the database is being updated.</p>
+				<p><strong>Impact on the project:</strong> This layer is the functional core of RxAide. It is where data becomes durable, where AI becomes usable, and where asynchronous work is converted into screen updates.</p>
+			`,
+			'Background Processing & Notifications': `
+				<p><strong>WorkManager:</strong> WorkManager is used for reminder scheduling and other deferred background tasks. It is the correct choice because the app needs reminders to survive process death, device reboot, and system power restrictions. It also gives RxAide a reliable way to schedule recurring dose-related work.</p>
+				<p><strong>Notification Channels:</strong> Android 8 and above require channels for user-visible notifications. RxAide uses a dedicated channel for reminders so the app can control priority and deliver consistent reminder behavior even when the sound playback is handled separately.</p>
+				<p><strong>BroadcastReceivers:</strong> Receivers are how the app reacts to system-level and notification-level events. They handle boot completion so reminders can be restored, and they handle action-button taps so the user can mark a dose as taken or missed straight from the notification.</p>
+				<p><strong>NotificationSoundPlayer:</strong> This helper plays custom reminder audio independently of the notification channel sound. That separation is useful because the app can keep the notification silent while still playing a medication-specific tone.</p>
+				<p><strong>DoseGenerationWorker:</strong> This worker fills in historical gaps by generating missed dose rows when needed, which keeps adherence analytics accurate even if some reminder records were not created on time.</p>
+				<p><strong>ReminderScheduler and ReminderWorker:</strong> One schedules the job; the other delivers the notification at the scheduled time. Those two classes form the core delivery chain.</p>
+				<p><strong>RxAideNotificationChannel:</strong> This class defines the channel identity and notification behavior that Android uses to register reminder notifications consistently.</p>
+				<p><strong>Impact on the project:</strong> These components make the app trustworthy for real-world reminder use. They are what transform the software from a passive tracker into an active reminder system.</p>
+			`,
+			'Camera, Navigation & Tooling': `
+				<p><strong>CameraX:</strong> CameraX provides lifecycle-aware camera access, preview, and image capture. RxAide uses it so the user can photograph a prescription directly inside the app before sending the image to Gemini for analysis.</p>
+				<p><strong>Navigation Compose:</strong> Navigation Compose manages the route graph, the bottom navigation flow, and the push-navigation screens. It allows the project to keep navigation type-safe and organized even as the number of screens grows.</p>
+				<p><strong>Git and GitHub:</strong> Version control is important because this project has multiple moving parts and lots of presentation changes. GitHub provides the collaboration structure, issue tracking, and history needed to manage the codebase responsibly.</p>
+				<p><strong>Tooling impact:</strong> These tools connect capture, flow, and collaboration. CameraX brings the external world into the app, Navigation Compose moves the user through the workflow, and Git/GitHub keep the development process controlled and reviewable.</p>
+			`,
+			'View Layer': `
+				<p><strong>What this layer is:</strong> The View layer is the visible Compose UI that renders state and collects user input.</p>
+				<p><strong>How it works in RxAide:</strong> Screens like HomeScreen, ChatScreen, CameraScreen, and MedicationDetailScreen observe state from their ViewModels. They do not own business rules; instead, they show the current state and emit user events upward.</p>
+				<p><strong>Why that matters:</strong> When the UI stays focused on presentation, it becomes easier to redesign, test, and reason about. A layout change or theme update will not disturb reminder logic or database code.</p>
+				<p><strong>Impact on the project:</strong> This layer makes the app feel responsive and easy to navigate while keeping the rest of the architecture protected from UI churn.</p>
+			`,
+			'ViewModel Layer': `
+				<p><strong>What this layer is:</strong> The ViewModel layer stores screen state and coordinates actions between the View and the Model.</p>
+				<p><strong>How it works in RxAide:</strong> MedicationViewModel handles medication CRUD and reminder scheduling, ChatViewModel handles AI conversation and action-block parsing, and AdherenceViewModel handles analytics and summary calculations. They launch background work, transform results, and expose state back to Compose.</p>
+				<p><strong>Why it matters:</strong> ViewModels preserve state through configuration changes and keep composables declarative. They are the right place to manage coroutines, repository calls, and derived state.</p>
+				<p><strong>Impact on the project:</strong> This layer is where workflow logic becomes structured. It keeps the app maintainable and prevents the UI code from becoming overloaded with logic.</p>
+			`,
+			'Model Layer': `
+				<p><strong>What this layer is:</strong> The Model layer contains the persistent data and the service classes that define the application's real behavior.</p>
+				<p><strong>How it works in RxAide:</strong> Room stores local data, repositories manage DAO access, GeminiService talks to the AI model, and the reminder infrastructure schedules and delivers notification events.</p>
+				<p><strong>Why it matters:</strong> This is the source of truth. If the model layer is correct, the rest of the app can present accurate schedules, conversations, reminders, and adherence metrics.</p>
+				<p><strong>Impact on the project:</strong> The model layer is where the app's persistence, automation, and AI intelligence actually live, so it carries most of the domain responsibility.</p>
+			`,
+			'medications': `
+				<p><strong>Purpose:</strong> The medications table stores the core medication records that the entire app revolves around.</p>
+				<p><strong>Fields and their role:</strong> <code>name</code> identifies the medicine, <code>dosage</code> and <code>dosageUnit</code> define the quantity, <code>form</code> captures the dosage form, <code>frequency</code> stores the dose pattern, <code>mealRelation</code> describes timing relative to food, <code>startDate</code> and <code>endDate</code> define the active interval, <code>notificationSoundUri</code> connects a custom reminder sound, and <code>isActive</code> controls whether the medication should still participate in workflows.</p>
+				<p><strong>How it is used:</strong> ViewModels read and mutate this entity, ReminderScheduler uses it to schedule reminders, UI screens display it in lists and detail views, and adherence logic uses it as the parent record for dose tracking.</p>
+				<p><strong>Impact:</strong> This table is the starting point for almost every other feature. If it is incorrect, reminders, analytics, and AI-assisted updates all become unreliable.</p>
+			`,
+			'schedules': `
+				<p><strong>Purpose:</strong> The schedules table stores the actual reminder occurrences linked to a medication.</p>
+				<p><strong>Fields and their role:</strong> <code>timeHour</code> and <code>timeMinute</code> define the exact reminder time, <code>daysOfWeek</code> captures the repeat pattern, and <code>isEnabled</code> lets the app disable a schedule without deleting it. The foreign key <code>medicationId</code> ties the schedule back to its parent medication.</p>
+				<p><strong>How it is used:</strong> ReminderScheduler reads these rows, converts them into WorkManager requests, and schedules the next reminder time. If the user edits a schedule later, the app can update the row and reschedule reminders accordingly.</p>
+				<p><strong>Impact:</strong> This table is the operational bridge between intent and execution. It turns a medication plan into concrete future reminder jobs.</p>
+			`,
+			'dose_history': `
+				<p><strong>Purpose:</strong> The dose_history table records whether a scheduled dose was actually taken, missed, or left unmarked.</p>
+				<p><strong>Fields and their role:</strong> <code>status</code> stores the adherence outcome, <code>scheduledTime</code> identifies when the dose was due, and <code>actionTime</code> records when the user responded. Optional foreign keys to <code>medicationId</code> and <code>scheduleId</code> link the history record back to the source data.</p>
+				<p><strong>How it is used:</strong> ReminderWorker creates rows when reminders fire, the notification action receiver updates rows when the user taps Taken or Missed, and DoseGenerationWorker fills historical gaps so analytics stay complete.</p>
+				<p><strong>Impact:</strong> This table is the evidence base for the adherence dashboard. It turns reminder activity into measurable behavior and makes review possible later.</p>
+			`,
+			'chat_messages': `
+				<p><strong>Purpose:</strong> The chat_messages table stores the conversation history between the user and the AI assistant.</p>
+				<p><strong>Fields and their role:</strong> <code>content</code> stores the message text, <code>imageUri</code> points to any attached prescription image, <code>isFromUser</code> identifies the sender, and <code>timestamp</code> preserves ordering.</p>
+				<p><strong>How it is used:</strong> ChatViewModel and ChatRepository save user prompts and AI responses so the conversation can continue across app sessions. The stored history also provides context for follow-up requests and schedule confirmations.</p>
+				<p><strong>Impact:</strong> This table gives the assistant memory and makes the chat workflow feel continuous instead of stateless.</p>
+			`,
+			'Data Flow': `
+				<p><strong>What this card explains:</strong> It summarizes the runtime path from user interaction to persistent result and back to the UI.</p>
+				<p><strong>How the flow works:</strong> A user action starts on a screen, the screen forwards the event to a ViewModel, the ViewModel calls a repository or service, the repository talks to Room or Gemini, and the result is published through StateFlow back to the composable so the UI recomposes.</p>
+				<p><strong>Why it matters:</strong> This flow is the core reason the architecture feels stable. It prevents business logic from leaking into the UI and keeps data mutations traceable.</p>
+				<p><strong>Impact on the project:</strong> The card is a compact explanation of the app's MVVM and unidirectional data flow design. It helps reviewers understand how a single user action can trigger persistence, AI processing, notification updates, and then a UI refresh.</p>
+			`,
+			'ai/': `
+				<p><strong>What this package does:</strong> The ai package contains the Gemini integration and the prompt and response processing logic that turn raw prescriptions into structured data.</p>
+				<p><strong>How it is used:</strong> GeminiService prepares text and image payloads, attaches system instructions, optionally enables search grounding, and parses the model response into something the rest of the app can use.</p>
+				<p><strong>Why it matters:</strong> RxAide depends on this package for AI-assisted extraction and conversational scheduling. Without it, the app would only be a reminder tracker instead of a prescription assistant.</p>
+				<p><strong>Impact:</strong> This package is where the app's AI intelligence is concentrated, so it is one of the highest-value and highest-risk areas of the codebase.</p>
+			`,
+			'data/': `
+				<p><strong>What this package does:</strong> The data package contains the database, entities, DAOs, and repositories that store and retrieve the app's persistent state.</p>
+				<p><strong>How it is used:</strong> ViewModels request work through repositories, repositories call DAOs, and DAOs execute the actual typed queries against SQLite via Room.</p>
+				<p><strong>Why it matters:</strong> It gives RxAide a clean persistence boundary. UI code does not talk directly to SQL, and business logic does not need to know the details of database implementation.</p>
+				<p><strong>Impact:</strong> The data package makes the app reliable across restarts and gives every feature a stable source of truth.</p>
+			`,
+			'ui/screens/': `
+				<p><strong>What this package does:</strong> The ui/screens package contains the Compose screens that make up the entire visible application.</p>
+				<p><strong>How it is used:</strong> Each screen is a declarative function that observes state, renders content, and emits user events upward to a ViewModel or navigation controller.</p>
+				<p><strong>Why it matters:</strong> This is the package the user actually experiences. It is where medication management, AI chat, camera capture, reminders, and analytics become interactive.</p>
+				<p><strong>Impact:</strong> It defines the app's actual usability and presentation quality, so it is central to both the demo and the final product.</p>
+			`,
+			'viewmodel/': `
+				<p><strong>What this package does:</strong> The viewmodel package holds the stateful workflow logic that sits between the UI and the data layer.</p>
+				<p><strong>How it is used:</strong> The ViewModels coordinate medication creation, AI-driven chat actions, reminder scheduling, filtering, and adherence calculations while exposing state to the screens.</p>
+				<p><strong>Why it matters:</strong> It keeps the Compose layer simple and makes the app easier to reason about because the heavy logic is centralized in fewer, clearer classes.</p>
+				<p><strong>Impact:</strong> Most user workflows in RxAide touch this package, so it is one of the most important areas for long-term maintainability.</p>
+			`,
+			'notification/': `
+				<p><strong>What this package does:</strong> The notification package implements reminder scheduling, delivery, response handling, and recovery after system events.</p>
+				<p><strong>How it is used:</strong> WorkManager schedules the jobs, workers build notifications, receivers process action taps and boot events, the sound player handles custom audio, and the notification channel registers the reminder behavior with Android.</p>
+				<p><strong>Why it matters:</strong> Medication reminders only matter if they are dependable under real device conditions. This package is what keeps the app useful when the phone sleeps, reboots, or the user interacts directly from the notification shade.</p>
+				<p><strong>Impact:</strong> It is the operational core of the reminder feature and one of the main reasons the app can function like a real assistant instead of a static planner.</p>
+			`,
+			'navigation/': `
+				<p><strong>What this package does:</strong> The navigation package centralizes route definitions and navigation behavior for the entire app.</p>
+				<p><strong>How it is used:</strong> The sealed Screen model defines every destination in one place, and the navigation graph connects the bottom tabs, detail screens, camera flow, and chat flow with type-safe route handling.</p>
+				<p><strong>Why it matters:</strong> Centralizing navigation prevents route strings from being duplicated across the UI and makes it much easier to add or rename screens safely.</p>
+				<p><strong>Impact:</strong> The package keeps the app's movement predictable and maintainable as the UI grows.</p>
+			`,
+			'Source Tree': `
+				<p><strong>What this block shows:</strong> It is a compact map of the entire Kotlin source tree under <code>com/example/rxaide</code>.</p>
+				<p><strong>How to read it:</strong> The top-level files are the entry and orchestration points. The folder branches show the app's functional layers: <em>ai</em> for Gemini integration, <em>data</em> for Room and repositories, <em>navigation</em> for routing, <em>notification</em> for reminder delivery, <em>ui</em> for Compose screens, and <em>viewmodel</em> for business logic.</p>
+				<p><strong>Why it matters:</strong> The tree turns a large codebase into a visual explanation. It helps a reviewer quickly locate where a feature lives, which files are infrastructure, and which parts are user-facing.</p>
+				<p><strong>Impact:</strong> This block is especially useful during revision because it creates a mental map of the project and reduces the time needed to find code during a presentation or code review.</p>
+			`,
+			'Entity Design': `
+				<p><strong>What this excerpt shows:</strong> The Room entity definition for the <code>Medication</code> table, which is one of the app's most important persistence models.</p>
+				<p><strong>How the code works:</strong> <code>@Entity(tableName = "medications")</code> tells Room to create or map to a table named <code>medications</code>. <code>@PrimaryKey(autoGenerate = true)</code> makes <code>id</code> the unique row identifier, and every constructor parameter becomes a database column. Default values like <code>"mg"</code>, <code>"No relation"</code>, and <code>true</code> reduce the amount of data the caller has to supply and encode sensible starting behavior.</p>
+				<p><strong>Why each field matters:</strong> The name, dosage, form, frequency, and meal relation define the medication itself. The start and end dates define the active window. The sound URI allows reminder customization. The <code>isActive</code> flag makes it possible to retire a medication without deleting historical records, and <code>createdAt</code> helps preserve ordering and audit history.</p>
+				<p><strong>Where it is used:</strong> This entity is read and written by the medication repository and ViewModel, displayed by medication screens, and used indirectly by reminder and adherence features because those features need the medication identity and schedule metadata.</p>
+				<p><strong>Impact on the project:</strong> This single class defines the schema that almost every feature depends on. If its fields are wrong, the reminder engine, analytics, and AI-assisted scheduling all inherit the error.</p>
+			`,
+			'Bangladesh Dose Notation Decoder': `
+				<p><strong>What this excerpt shows:</strong> A system-prompt fragment inside GeminiService that teaches the model how to translate local prescription shorthand into structured dosing meanings.</p>
+				<p><strong>How the code works:</strong> The prompt explicitly explains how values like <code>1+1+1</code>, <code>1+0+1</code>, <code>0+0+1</code>, and <code>½+0+½</code> should be interpreted. It also defines Bengali digits so the model can normalize them into standard numerals before the rest of the app processes the result.</p>
+				<p><strong>Why this matters:</strong> Real prescriptions often use regional shorthand that a general AI model might misread. This prompt narrows the model's interpretation space, so the extraction output becomes more reliable and predictable.</p>
+				<p><strong>Where it fits in the flow:</strong> This text is part of the broader Gemini prompt assembly step. It is used before the AI response is generated, so the model already has the decoding rules when it sees the image or conversation context.</p>
+				<p><strong>Impact on the project:</strong> This prompt directly improves extraction quality. It reduces ambiguity, decreases manual correction, and helps the app convert local medical notation into usable schedule data.</p>
+			`,
+			'Multimodal Image Analysis': `
+				<p><strong>What this excerpt shows:</strong> The full prescription-photo analysis pipeline used when the user submits an image to Gemini.</p>
+				<p><strong>Step-by-step flow:</strong> The function is marked <code>suspend</code> because it performs asynchronous work. It immediately shifts into <code>Dispatchers.IO</code> so image loading and network calls do not block the main thread. It then converts the image URI into bytes with <code>loadImageBytes()</code>, merges those bytes with the current chat history using <code>buildChatContents()</code>, and prepares a <code>GenerateContentConfig</code> object to control the model request.</p>
+				<p><strong>What each config line does:</strong> <code>systemInstruction()</code> injects the base prompt, <code>tools(googleSearchTool)</code> enables search grounding so medicine names can be verified, <code>temperature(0.1f)</code> keeps the output deterministic, <code>maxOutputTokens(4096)</code> allows a substantial answer, and the <code>thinkingConfig</code> with a <code>24576</code> token budget gives the model enough reasoning room for messy handwritten prescriptions.</p>
+				<p><strong>Why the code is written this way:</strong> The project needs the AI to do more than just describe an image; it needs to identify medicine names, dosage instructions, and structured fields that the app can later use. The config is therefore tuned for careful extraction rather than creative writing.</p>
+				<p><strong>Where it is used:</strong> This function is called from the chat flow when a prescription image is attached. It powers one of RxAide's core features: turning a real-world image into a structured medication assistant interaction.</p>
+				<p><strong>Impact on the project:</strong> This is one of the most important pieces of the entire app. It connects the camera, AI model, and medication workflow into a single pipeline that saves the user time and reduces manual data entry.</p>
+			`,
+			'Chat → Database Mutations via Action Blocks': `
+				<p><strong>What this excerpt shows:</strong> The mechanism that converts structured Gemini output into real database mutations instead of leaving the answer as plain text.</p>
+				<p><strong>How the code works:</strong> The function accepts the AI response as a string, builds a <code>Regex</code> that looks for <code>[SCHEDULE_UPDATE]</code> blocks, and scans the response with <code>findAll()</code>. For each match, it extracts the medication name, finds the active medication record, and loads the current schedule rows for that medication.</p>
+				<p><strong>What happens next:</strong> The code loops through each requested time change, creates an updated schedule copy with the new hour and minute, writes the updated row back through the repository, then cancels the old reminders and re-schedules them with the updated data. The final returned string removes the action blocks so the chat output remains readable to the user.</p>
+				<p><strong>Why this design matters:</strong> The AI is not allowed to silently modify state. It can suggest structured changes, but the ViewModel interprets those changes and commits them through the app's normal data and scheduling layers. That keeps the workflow safe and traceable.</p>
+				<p><strong>Where it is used:</strong> This method sits inside ChatViewModel, so it is executed after a conversation response arrives. It bridges conversational AI and the persistent medication model.</p>
+				<p><strong>Impact on the project:</strong> This is the point where the assistant becomes actionable. The app is no longer just answering questions; it is applying user-approved edits to the actual schedule system.</p>
+			`,
+			'WorkManager Reminder Scheduling': `
+				<p><strong>What this excerpt shows:</strong> The code that converts a stored schedule into a real WorkManager reminder job.</p>
+				<p><strong>How the code works:</strong> The function builds a <code>Calendar</code> for the current time and another <code>Calendar</code> for the target reminder time. It sets the target hour and minute from the schedule, and if that time has already passed for today, it pushes the target to tomorrow. After that, it calculates <code>initialDelayMs</code> as the difference between the target and current time.</p>
+				<p><strong>Why the WorkRequest is configured this way:</strong> A <code>PeriodicWorkRequestBuilder&lt;ReminderWorker&gt;(24, TimeUnit.HOURS)</code> makes the reminder repeat daily. The initial delay makes the first run align with the actual scheduled time, while <code>setInputData()</code> passes the medication details that ReminderWorker needs to build the notification. The unique tag keeps each medication/schedule pair identifiable.</p>
+				<p><strong>What the enqueue call does:</strong> <code>enqueueUniquePeriodicWork()</code> registers the work under a stable name and uses the replacement policy so updated schedules can overwrite old jobs cleanly instead of stacking duplicates.</p>
+				<p><strong>Where it is used:</strong> This logic is called from reminder setup and from schedule changes after user edits or AI-driven adjustments.</p>
+				<p><strong>Impact on the project:</strong> This is the timing engine behind the reminder feature. It is the reason RxAide can deliver reminders at the right time without relying on the app being open.</p>
+			`,
+			'Interactive Notification with Action Buttons': `
+				<p><strong>What this excerpt shows:</strong> The construction of the actual medication reminder notification and the user actions attached to it.</p>
+				<p><strong>How the code works:</strong> The <code>NotificationCompat.Builder</code> is initialized with the reminder channel, a title that includes the medication name, and content text that shows the dosage amount. The notification is marked high priority and auto-canceling so it behaves like a time-sensitive reminder. Two action buttons are added: Taken and Missed. Each action points to a <code>PendingIntent</code> that is handled by <code>ReminderActionReceiver</code>.</p>
+				<p><strong>Why it is silent:</strong> The notification itself is set to silent because the project plays custom audio separately through <code>NotificationSoundPlayer</code>. That separation lets the app control sound behavior more flexibly than the default channel sound alone would allow.</p>
+				<p><strong>What happens when the user taps a button:</strong> The receiver updates the dose history table so adherence is recorded immediately without opening the app. That means the notification is not just informational; it is also an input surface for the data model.</p>
+				<p><strong>Where it is used:</strong> This logic lives in the reminder worker that runs when WorkManager triggers a dose event.</p>
+				<p><strong>Impact on the project:</strong> The notification is where the reminder feature becomes truly interactive. It keeps the workflow fast for the user while preserving a reliable adherence record.</p>
+			`,
+			'Type-Safe Navigation with Sealed Classes': `
+				<p><strong>What this excerpt shows:</strong> The navigation route model used across the app.</p>
+				<p><strong>How the code works:</strong> The sealed <code>Screen</code> class acts as a closed set of destinations. Each screen is represented as a <code>data object</code> with a route string such as <code>"home"</code>, <code>"chat"</code>, or <code>"settings"</code>. For parameterized destinations, a helper like <code>createRoute()</code> builds the final route string using the provided ID.</p>
+				<p><strong>Why sealed objects are useful here:</strong> They prevent route names from being scattered as raw strings all over the UI. This reduces typos, makes refactoring safer, and keeps the navigation layer readable.</p>
+				<p><strong>Where it is used:</strong> The nav graph and the screen buttons both reference these screen definitions so they can navigate between home, medication lists, chat, camera, detail screens, and settings in a consistent way.</p>
+				<p><strong>Impact on the project:</strong> The navigation layer stays predictable and maintainable as the app grows. It is a small piece of code, but it has a strong effect on the app's overall reliability.</p>
+			`
+		};
+
+		function openInfoModal(button) {
+			const title = button.getAttribute('data-modal-title') || 'Details';
+			const note = modalContentByTitle[title] || button.getAttribute('data-modal-note') || 'Placeholder details will be added here later.';
+
+			infoModalTitle.textContent = title;
+			infoModalSubtitle.textContent = 'Detailed explanation for review and revision.';
+			infoModalBody.innerHTML = note;
+			infoModalOverlay.classList.add('open');
+			infoModalOverlay.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+			infoModalClose.focus();
+		}
+
+		function closeInfoModal() {
+			infoModalOverlay.classList.remove('open');
+			infoModalOverlay.setAttribute('aria-hidden', 'true');
+			document.body.style.overflow = '';
+		}
+
+		infoButtons.forEach(button => {
+			button.addEventListener('click', () => openInfoModal(button));
+		});
+
+		infoModalClose.addEventListener('click', closeInfoModal);
+		infoModalOverlay.addEventListener('click', (event) => {
+			if (event.target === infoModalOverlay) {
+				closeInfoModal();
+			}
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && infoModalOverlay.classList.contains('open')) {
+				closeInfoModal();
+			}
+		});
+	</script>
+
+</body>
+
+</html>
